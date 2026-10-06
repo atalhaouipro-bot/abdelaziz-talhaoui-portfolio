@@ -1110,18 +1110,4 @@ window.DATA = {
     items: []
 
   },
-
-
-  /* =========================================================
-     LINKS
-  ========================================================= */
-
-  links: {
-
-    linkedin: "https://www.linkedin.com/in/abdelaziz-talhaoui-pro/",
-
-    email: "a.talhaouipro@gmail.com"
-
-  }
-
 };
