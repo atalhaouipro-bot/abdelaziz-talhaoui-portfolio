@@ -1,0 +1,38 @@
+const D=window.DATA,S=D.settings,P=D.profile;let L=localStorage.getItem('lang')||S.lang;
+const T=x=>x&&typeof x==='object'&&'fr'in x?x[L]:x;
+const U={fr:{nav:['Parcours','Expertises','Réalisations','Recherche','FORMA LAB','Contact'],c1:'Découvrir mon parcours',c2:'Voir mes réalisations',loop:'Ma démarche',feat:'Projets',all:'Tous',ctx:'Contexte',need:'Besoin',goal:'Objectif',role:'Mon rôle',app:'Démarche',del:'Livrables',tools:'Outils',res:'Résultats',imp:'Impact',link:'Lien',back:'← Réalisations',impt:'Résultats',dates:'Dates',resp:'Responsabilités',proj:'Projets',ach:'Réalisations',cv:'Télécharger mon CV',thesis:'Mémoire',q:'Problématique',cert:'Certifications',pub:'Publications',talks:'Conférences',mail:'Écrire',send:'Envoyer',draft:'MODE BROUILLON — les champs [À COMPLÉTER] sont masqués en ligne (settings.draft = false)',about:'À propos',vis:'Vision',met:'Méthode',st:'Statut',yt:'Chaîne YouTube'},
+en:{nav:['Background','Expertise','Work','Research','FORMA LAB','Contact'],c1:'Explore my background',c2:'See my work',loop:'My approach',feat:'Projects',all:'All',ctx:'Context',need:'Need',goal:'Goal',role:'My role',app:'Approach',del:'Deliverables',tools:'Tools',res:'Results',imp:'Impact',link:'Link',back:'← Work',impt:'Results',dates:'Dates',resp:'Responsibilities',proj:'Projects',ach:'Achievements',cv:'Download my CV',thesis:'Thesis',q:'Research question',cert:'Certifications',pub:'Publications',talks:'Talks',mail:'Write',send:'Send',draft:'DRAFT MODE — [À COMPLÉTER] fields are hidden online (settings.draft = false)',about:'About',vis:'Vision',met:'Method',st:'Status',yt:'YouTube channel'}};
+const u=k=>U[L][k],R=['parcours','expertises','realisations','recherche','forma-lab','contact'];
+const ph=()=>S.draft?'<span class="tbd">[À COMPLÉTER]</span>':'';
+const list=a=>(T(a)||[]).filter(Boolean);
+const val=x=>{x=T(x);return x?(Array.isArray(x)?x.join(' · '):x):ph()};
+const blk=(l,x)=>(T(x)||S.draft)?`<div class="b"><h4>${l}</h4><p>${val(x)}</p></div>`:'';
+const cat=id=>T((D.categories.find(c=>c.id===id)||{}).n)||id;
+const stat=a=>a.filter(s=>s.v!==''||S.draft).map(s=>`<div><b>${s.v===''?ph():s.v}</b><span>${T(s.l)}</span></div>`).join('');
+const loop=()=>`<div class="loop">${D.loop.map((s,i)=>`<a href="#/realisations/f:${s.cat}"><small>0${i+1}</small>${T(s.k)}</a>`).join('')}</div>`;
+const card=p=>`<a class="card rv" href="#/realisations/${p.id}"><span class="tag">${p.cat.map(cat).join(' · ')}</span><h3>${T(p.title)}</h3><p>${T(p.context)}</p></a>`;
+const pages={
+home:()=>`<section class="hero"><div class="w"><p class="title">${T(P.title)}</p><h1>${T(P.tagline)}</h1><p class="lead">${T(P.sub)}</p><a class="btn" href="#/parcours">${u('c1')}</a><a class="btn o" href="#/realisations">${u('c2')}</a></div></section>
+<section><div class="w"><h2>${u('loop')}</h2>${loop()}</div></section>
+<section><div class="w"><h2>${u('ach')}</h2><div class="stats">${stat(D.achievements)}</div></div></section>
+<section><div class="w"><h2>${u('feat')}</h2><div class="grid">${D.projects.map(card).join('')}</div></div></section>`,
+parcours:()=>`<div class="page"><div class="w"><h1>${u('about')}</h1>${P.about.filter(a=>T(a)||S.draft).map(a=>`<p class="lead">${val(a)}</p>`).join('')}${blk(u('vis'),P.vision)}${blk(u('met'),P.method)}
+<h2 style="margin-top:48px">${u('nav')[0]}</h2>${D.experiences.map(e=>`<details open><summary>${T(e.role)} — ${e.org}</summary>${blk(u('dates'),e.dates)}${blk(u('ctx'),e.context)}${blk(u('resp'),e.resp)}${blk(u('proj'),e.projects)}${blk(u('ach'),e.achievements)}${blk(u('imp'),e.impact)}</details>`).join('')}</div></div>`,
+expertises:()=>`<div class="page"><div class="w"><h1>${u('nav')[1]}</h1><div class="grid">${D.expertises.map(x=>`<div class="card rv"><h3>${T(x.n)}</h3><ul>${list(x.items).map(i=>`<li>${i}</li>`).join('')}</ul>${x.proof?`<p class="tag" style="margin-top:12px"><a href="#/realisations/${x.proof}">→ ${T(D.projects.find(p=>p.id===x.proof).title)}</a></p>`:''}</div>`).join('')}</div></div></div>`,
+realisations:(a)=>{const f=a&&a.startsWith('f:')?a.slice(2):'',p=D.projects.find(x=>x.id===a);if(p)return`<div class="page"><div class="w"><a href="#/realisations">${u('back')}</a><p class="title" style="margin-top:24px">${p.cat.map(cat).join(' · ')}</p><h1>${T(p.title)}</h1>${[['ctx','context'],['need','need'],['goal','goal'],['role','role'],['app','approach'],['del','deliverables'],['tools','tools'],['res','results'],['imp','impact'],['link','link']].map(([l,k])=>blk(u(l),p[k])).join('')}</div></div>`;
+return`<div class="page"><div class="w"><h1>${u('nav')[2]}</h1><div class="filters" role="group">${['',...D.categories.map(c=>c.id)].map(id=>`<button data-f="${id}" class="${id===f?'on':''}">${id?cat(id):u('all')}</button>`).join('')}</div><div class="grid" id="pg">${D.projects.filter(p=>!f||p.cat.includes(f)).map(card).join('')}</div></div></div>`},
+recherche:()=>{const r=D.research;return`<div class="page"><div class="w"><h1>${u('nav')[3]}</h1>${blk('Master',r.education)}${blk(u('st'),r.status)}${blk(u('thesis'),r.thesis)}${blk(u('q'),r.question)}<a class="btn o" href="#/realisations/memoire">→ ${u('thesis')}</a>${blk(u('cert'),r.certifications)}${blk(u('pub'),r.publications)}${blk(u('talks'),r.talks)}</div></div>`},
+'forma-lab':()=>{const f=D.formalab;return`<div class="page"><div class="w"><p class="title">FORMA LAB</p><h1>${T(f.sig)}</h1><p class="lead">${T(f.desc)}</p>${f.youtube?`<a class="btn" href="${f.youtube}">${u('yt')}</a>`:blk(u('yt'),'')}${f.items.map(i=>`<a class="card" href="${i.url}">${T(i.t)}</a>`).join('')}</div></div>`},
+contact:()=>`<div class="page"><div class="w"><h1>Contact</h1><a class="btn" href="${S.cv}">${u('cv')}</a><p><a href="${D.links.linkedin}" rel="noopener">LinkedIn</a></p>${D.links.email?`<p><a href="mailto:${D.links.email}">${D.links.email}</a></p>`:blk('Email','')}
+${S.formAction?`<form action="${S.formAction}" method="post"><input name="name" required aria-label="Nom"><input name="email" type="email" required aria-label="Email"><textarea name="message" rows="5" required aria-label="Message"></textarea><input name="_gotcha" style="display:none" tabindex="-1" autocomplete="off"><button class="btn">${u('send')}</button></form>`:''}</div></div>`};
+function render(){const h=location.hash.replace('#/','').split('/'),k=h[0]||'home',m=document.getElementById('main');
+document.documentElement.lang=L;
+document.getElementById('nav').innerHTML=(S.draft?`<div class="draft">${u('draft')}</div>`:'')+`<div class="w"><a class="brand" href="#/">${P.name}</a><nav id="mn">${R.map((r,i)=>`<a href="#/${r}" class="${r===k?'on':''}">${u('nav')[i]}</a>`).join('')}</nav><button class="lang" id="lg">${L==='fr'?'EN':'FR'}</button><button class="bg" id="bg" aria-label="Menu">☰</button></div>`;
+m.innerHTML=(pages[k]||pages.home)(h[1]);
+document.title=k==='home'?'Abdelaziz Talhaoui | Ingénierie de formation & ingénierie pédagogique':`${u('nav')[R.indexOf(k)]||''} | ${P.name}`;
+document.getElementById('foot').innerHTML=`<div class="w">© ${new Date().getFullYear()} ${P.name} · <a href="${D.links.linkedin}">LinkedIn</a></div>`;
+lg.onclick=()=>{L=L==='fr'?'en':'fr';localStorage.setItem('lang',L);render()};bg.onclick=()=>mn.classList.toggle('open');
+document.querySelectorAll('.filters button').forEach(b=>b.onclick=()=>{location.hash='#/realisations'+(b.dataset.f?'/f:'+b.dataset.f:'')});
+const io=new IntersectionObserver(e=>e.forEach(x=>x.isIntersecting&&x.target.classList.add('in')));document.querySelectorAll('.rv').forEach(n=>io.observe(n));
+if(h[1]===undefined||h[1].startsWith('f:'))scrollTo(0,0);else scrollTo(0,0)}
+addEventListener('hashchange',render);render();
