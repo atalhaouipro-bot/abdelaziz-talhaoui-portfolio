@@ -2,17 +2,13 @@ const D = window.DATA;
 const S = D.settings;
 const P = D.profile;
 
-let L = localStorage.getItem("lang") || S.lang;
+let L = localStorage.getItem("lang") || S.lang || "fr";
 
-/* =========================================================
-   TRANSLATION / HELPERS
-========================================================= */
-
-const T = x => {
-  if (x && typeof x === "object" && "fr" in x) {
-    return x[L];
+const T = value => {
+  if (value && typeof value === "object" && "fr" in value) {
+    return value[L] ?? value.fr ?? "";
   }
-  return x;
+  return value ?? "";
 };
 
 const U = {
@@ -28,7 +24,6 @@ const U = {
 
     c1: "Découvrir mon parcours",
     c2: "Voir mes réalisations",
-
     loop: "Ma démarche",
     feat: "Projets",
     all: "Tous",
@@ -45,7 +40,6 @@ const U = {
     link: "Lien",
 
     back: "← Réalisations",
-
     impt: "Résultats",
     dates: "Dates",
     resp: "Responsabilités",
@@ -84,6 +78,7 @@ const U = {
     contactTitle: "Travaillons ensemble",
     contactText:
       "Vous souhaitez échanger autour d’un projet de formation, d’ingénierie pédagogique ou d’évaluation ?",
+
     email: "Email professionnel",
     linkedin: "Profil LinkedIn",
 
@@ -103,7 +98,6 @@ const U = {
 
     c1: "Explore my background",
     c2: "See my work",
-
     loop: "My approach",
     feat: "Projects",
     all: "All",
@@ -120,7 +114,6 @@ const U = {
     link: "Link",
 
     back: "← Work",
-
     impt: "Results",
     dates: "Dates",
     resp: "Responsibilities",
@@ -159,6 +152,7 @@ const U = {
     contactTitle: "Let's work together",
     contactText:
       "Would you like to discuss a project related to training, instructional design or evaluation?",
+
     email: "Professional email",
     linkedin: "LinkedIn profile",
 
@@ -167,7 +161,21 @@ const U = {
   }
 };
 
-const u = key => U[L][key];
+const u = key => U[L]?.[key] ?? U.fr[key] ?? key;
+
+/*
+  Navigation principale.
+  Cette constante était absente dans la version précédente
+  et provoquait l'erreur "R is not defined".
+*/
+const R = [
+  "parcours",
+  "expertises",
+  "realisations",
+  "recherche",
+  "forma-lab",
+  "contact"
+];
 
 const list = value => {
   const v = T(value);
@@ -190,54 +198,67 @@ const val = value => {
       : "";
   }
 
-  return Array.isArray(v)
-    ? v.filter(Boolean).join(" · ")
-    : v;
+  if (Array.isArray(v)) {
+    return v.filter(Boolean).join(" · ");
+  }
+
+  return v;
 };
 
 const cat = id => {
-  const found = D.categories.find(c => c.id === id);
+  const categories = Array.isArray(D.categories)
+    ? D.categories
+    : [];
+
+  const found = categories.find(category => category.id === id);
+
   return found ? T(found.n) : id;
 };
-
-
-/* =========================================================
-   CONTENT BLOCKS
-========================================================= */
 
 const block = (label, value) => {
   const v = T(value);
 
-  if (!v && !S.draft) return "";
+  if (!v && !S.draft) {
+    return "";
+  }
 
   return `
     <div class="b">
       <h4>${label}</h4>
+
       ${
         Array.isArray(v)
-          ? `<ul>${v
-              .filter(Boolean)
-              .map(item => `<li>${item}</li>`)
-              .join("")}</ul>`
+          ? `
+            <ul>
+              ${v
+                .filter(Boolean)
+                .map(item => `<li>${item}</li>`)
+                .join("")}
+            </ul>
+          `
           : `<p>${val(value)}</p>`
       }
     </div>
   `;
 };
 
-
 const listBlock = (label, value) => {
   const items = list(value);
 
-  if (!items.length && !S.draft) return "";
+  if (!items.length && !S.draft) {
+    return "";
+  }
 
   return `
     <div class="b">
       <h4>${label}</h4>
+
       <ul>
         ${
           items.length
-            ? items.map(item => `<li>${item}</li>`).join("")
+            ? items
+                .map(item => `<li>${item}</li>`)
+                .join("")
             : `<li>${val(value)}</li>`
         }
       </ul>
@@ -245,142 +266,158 @@ const listBlock = (label, value) => {
   `;
 };
 
+const stats = achievements => {
+  if (!Array.isArray(achievements)) {
+    return "";
+  }
 
-/* =========================================================
-   ACHIEVEMENTS
-========================================================= */
-
-const stats = achievements =>
-  achievements
-    .filter(item => item.v !== "" || S.draft)
-    .map(
-      item => `
-        <div>
-          <b>${item.v === "" ? val("") : item.v}</b>
-          <span>${T(item.l)}</span>
-        </div>
-      `
-    )
+  return achievements
+    .filter(item => item && (item.v !== "" || S.draft))
+    .map(item => `
+      <div>
+        <b>${item.v === "" ? val("") : item.v}</b>
+        <span>${T(item.l)}</span>
+      </div>
+    `)
     .join("");
+};
 
+const loop = () => {
+  if (!Array.isArray(D.loop)) {
+    return "";
+  }
 
-/* =========================================================
-   APPROACH LOOP
-========================================================= */
-
-const loop = () => `
-  <div class="loop">
-    ${D.loop
-      .map(
-        (step, index) => `
-          <a href="#/realisations/f:${step.cat}">
-            <small>0${index + 1}</small>
-            ${T(step.k)}
-          </a>
-        `
-      )
-      .join("")}
-  </div>
-`;
-
-
-/* =========================================================
-   PROJECT CARD
-========================================================= */
-
-const card = project => `
-  <a class="card rv" href="#/realisations/${project.id}">
-    <span class="tag">
-      ${project.cat.map(cat).join(" · ")}
-    </span>
-
-    <h3>${T(project.title)}</h3>
-
-    <p>${T(project.context)}</p>
-
-    <span class="project-more">
-      ${L === "fr" ? "Voir le projet →" : "View project →"}
-    </span>
-  </a>
-`;
-
-
-/* =========================================================
-   PROJECT DETAIL
-========================================================= */
-
-const projectPage = project => `
-  <div class="page">
-    <div class="w">
-
-      <a class="back" href="#/realisations">
-        ${u("back")}
-      </a>
-
-      <div class="project-head">
-
-        <p class="title">
-          ${project.cat.map(cat).join(" · ")}
-        </p>
-
-        <h1>${T(project.title)}</h1>
-
-        ${
-          T(project.context)
-            ? `<p class="lead">${T(project.context)}</p>`
-            : ""
-        }
-
-      </div>
-
-      <div class="project-content">
-
-        ${block(u("need"), project.need)}
-
-        ${block(u("goal"), project.goal)}
-
-        ${block(u("role"), project.role)}
-
-        ${block(u("app"), project.approach)}
-
-        ${listBlock(u("del"), project.deliverables)}
-
-        ${block(u("tools"), project.tools)}
-
-        ${block(u("res"), project.results)}
-
-        ${block(u("imp"), project.impact)}
-
-        ${
-          project.link
-            ? `
-              <div class="project-link">
-                <a class="btn o"
-                   href="${project.link}"
-                   target="_blank"
-                   rel="noopener">
-                   ${u("link")} →
-                </a>
-              </div>
-            `
-            : ""
-        }
-
-      </div>
-
+  return `
+    <div class="loop">
+      ${D.loop
+        .map(
+          (step, index) => `
+            <a href="#/realisations/f:${step.cat}">
+              <small>0${index + 1}</small>
+              ${T(step.k)}
+            </a>
+          `
+        )
+        .join("")}
     </div>
-  </div>
-`;
+  `;
+};
 
+const card = project => {
+  if (!project) {
+    return "";
+  }
 
-/* =========================================================
-   PRODUCTIONS
-========================================================= */
+  const categories = Array.isArray(project.cat)
+    ? project.cat
+    : [];
+
+  return `
+    <a class="card rv" href="#/realisations/${project.id}">
+      <span class="tag">
+        ${categories.map(cat).join(" · ")}
+      </span>
+
+      <h3>${T(project.title)}</h3>
+
+      <p>${T(project.context)}</p>
+
+      <span class="project-more">
+        ${L === "fr" ? "Voir le projet →" : "View project →"}
+      </span>
+    </a>
+  `;
+};
+
+const projectPage = project => {
+  if (!project) {
+    return `
+      <div class="page">
+        <div class="w">
+          <h1>Projet introuvable</h1>
+        </div>
+      </div>
+    `;
+  }
+
+  const categories = Array.isArray(project.cat)
+    ? project.cat
+    : [];
+
+  return `
+    <div class="page">
+      <div class="w">
+
+        <a class="back" href="#/realisations">
+          ${u("back")}
+        </a>
+
+        <div class="project-head">
+
+          <p class="title">
+            ${categories.map(cat).join(" · ")}
+          </p>
+
+          <h1>${T(project.title)}</h1>
+
+          ${
+            T(project.context)
+              ? `<p class="lead">${T(project.context)}</p>`
+              : ""
+          }
+
+        </div>
+
+        <div class="project-content">
+
+          ${block(u("need"), project.need)}
+
+          ${block(u("goal"), project.goal)}
+
+          ${block(u("role"), project.role)}
+
+          ${block(u("app"), project.approach)}
+
+          ${listBlock(
+            u("del"),
+            project.deliverables
+          )}
+
+          ${block(u("tools"), project.tools)}
+
+          ${block(u("res"), project.results)}
+
+          ${block(u("imp"), project.impact)}
+
+          ${
+            project.link
+              ? `
+                <div class="project-link">
+                  <a
+                    class="btn o"
+                    href="${project.link}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    ${u("link")} →
+                  </a>
+                </div>
+              `
+              : ""
+          }
+
+        </div>
+      </div>
+    </div>
+  `;
+};
 
 const productionsSection = () => {
   const p = D.productions;
 
-  if (!p) return "";
+  if (!p) {
+    return "";
+  }
 
   return `
     <section class="subsection">
@@ -389,15 +426,30 @@ const productionsSection = () => {
 
       <div class="grid">
 
-        ${block(u("production"), p.modules)}
+        ${block(
+          u("production"),
+          p.modules
+        )}
 
-        ${block(u("participantPack"), p.participantPack)}
+        ${block(
+          u("participantPack"),
+          p.participantPack
+        )}
 
-        ${block(u("trainerPack"), p.trainerPack)}
+        ${block(
+          u("trainerPack"),
+          p.trainerPack
+        )}
 
-        ${block(u("evaluation"), p.evaluation)}
+        ${block(
+          u("evaluation"),
+          p.evaluation
+        )}
 
-        ${block(u("frameworks"), p.frameworks)}
+        ${block(
+          u("frameworks"),
+          p.frameworks
+        )}
 
       </div>
 
@@ -405,15 +457,12 @@ const productionsSection = () => {
   `;
 };
 
-
-/* =========================================================
-   TOOLS
-========================================================= */
-
 const toolsSection = () => {
   const t = D.tools;
 
-  if (!t) return "";
+  if (!t) {
+    return "";
+  }
 
   return `
     <section class="subsection">
@@ -422,15 +471,30 @@ const toolsSection = () => {
 
       <div class="grid">
 
-        ${block(u("production"), t.production)}
+        ${block(
+          u("production"),
+          t.production
+        )}
 
-        ${block(u("digital"), t.digital)}
+        ${block(
+          u("digital"),
+          t.digital
+        )}
 
-        ${block(u("ai"), t.ai)}
+        ${block(
+          u("ai"),
+          t.ai
+        )}
 
-        ${block(u("analysis"), t.analysis)}
+        ${block(
+          u("analysis"),
+          t.analysis
+        )}
 
-        ${block(u("collaboration"), t.collaboration)}
+        ${block(
+          u("collaboration"),
+          t.collaboration
+        )}
 
       </div>
 
@@ -438,28 +502,24 @@ const toolsSection = () => {
   `;
 };
 
-
-/* =========================================================
-   PAGES
-========================================================= */
-
 const pages = {
-
-
-  /* -------------------------------------------------------
-     HOME
-  ------------------------------------------------------- */
 
   home: () => `
     <section class="hero">
 
       <div class="w">
 
-        <p class="title">${T(P.title)}</p>
+        <p class="title">
+          ${T(P.title)}
+        </p>
 
-        <h1>${T(P.tagline)}</h1>
+        <h1>
+          ${T(P.tagline)}
+        </h1>
 
-        <p class="lead">${T(P.sub)}</p>
+        <p class="lead">
+          ${T(P.sub)}
+        </p>
 
         <div class="hero-actions">
 
@@ -477,7 +537,6 @@ const pages = {
 
     </section>
 
-
     <section>
 
       <div class="w">
@@ -489,7 +548,6 @@ const pages = {
       </div>
 
     </section>
-
 
     <section>
 
@@ -505,7 +563,6 @@ const pages = {
 
     </section>
 
-
     <section>
 
       <div class="w">
@@ -514,7 +571,11 @@ const pages = {
 
         <div class="grid">
 
-          ${D.projects.map(card).join("")}
+          ${
+            Array.isArray(D.projects)
+              ? D.projects.map(card).join("")
+              : ""
+          }
 
         </div>
 
@@ -522,11 +583,6 @@ const pages = {
 
     </section>
   `,
-
-
-  /* -------------------------------------------------------
-     PARCOURS
-  ------------------------------------------------------- */
 
   parcours: () => `
     <div class="page">
@@ -537,69 +593,88 @@ const pages = {
 
         <div class="about-content">
 
-          ${P.about
-            .filter(item => T(item) || S.draft)
-            .map(item => `
-              <p class="lead">${val(item)}</p>
-            `)
-            .join("")}
+          ${
+            Array.isArray(P.about)
+              ? P.about
+                  .filter(
+                    item => T(item) || S.draft
+                  )
+                  .map(
+                    item => `
+                      <p class="lead">
+                        ${val(item)}
+                      </p>
+                    `
+                  )
+                  .join("")
+              : ""
+          }
 
         </div>
-
 
         ${block(u("vis"), P.vision)}
 
         ${block(u("met"), P.method)}
 
-
         <h2 class="section-title">
           ${u("nav")[0]}
         </h2>
 
-
         <div class="experience-list">
 
-          ${D.experiences
-            .map(
-              experience => `
-                <details open>
+          ${
+            Array.isArray(D.experiences)
+              ? D.experiences
+                  .map(
+                    experience => `
+                      <details open>
 
-                  <summary>
-                    ${T(experience.role)}
-                    <span>— ${experience.org}</span>
-                  </summary>
+                        <summary>
+                          ${T(experience.role)}
 
-                  ${block(u("dates"), experience.dates)}
+                          <span>
+                            — ${T(experience.org)}
+                          </span>
+                        </summary>
 
-                  ${block(u("ctx"), experience.context)}
+                        ${block(
+                          u("dates"),
+                          experience.dates
+                        )}
 
-                  ${listBlock(
-                    u("resp"),
-                    experience.resp
-                  )}
+                        ${block(
+                          u("ctx"),
+                          experience.context
+                        )}
 
-                  ${listBlock(
-                    u("proj"),
-                    experience.projects
-                  )}
+                        ${listBlock(
+                          u("resp"),
+                          experience.resp
+                        )}
 
-                  ${listBlock(
-                    u("ach"),
-                    experience.achievements
-                  )}
+                        ${listBlock(
+                          u("proj"),
+                          experience.projects
+                        )}
 
-                  ${block(
-                    u("imp"),
-                    experience.impact
-                  )}
+                        ${listBlock(
+                          u("ach"),
+                          experience.achievements
+                        )}
 
-                </details>
-              `
-            )
-            .join("")}
+                        ${block(
+                          u("imp"),
+                          experience.impact
+                        )}
+
+                      </details>
+                    `
+                  )
+                  .join("")
+              : ""
+          }
 
         </div>
-
 
         ${productionsSection()}
 
@@ -610,11 +685,6 @@ const pages = {
     </div>
   `,
 
-
-  /* -------------------------------------------------------
-     EXPERTISES
-  ------------------------------------------------------- */
-
   expertises: () => `
     <div class="page">
 
@@ -624,43 +694,58 @@ const pages = {
 
         <div class="grid">
 
-          ${D.expertises
-            .map(
-              expertise => `
-                <div class="card rv">
+          ${
+            Array.isArray(D.expertises)
+              ? D.expertises
+                  .map(expertise => {
 
-                  <h3>${T(expertise.n)}</h3>
+                    const proofProject =
+                      expertise.proof
+                        ? D.projects.find(
+                            project =>
+                              project.id ===
+                              expertise.proof
+                          )
+                        : null;
 
-                  <ul>
-                    ${list(expertise.items)
-                      .map(item => `<li>${item}</li>`)
-                      .join("")}
-                  </ul>
+                    return `
+                      <div class="card rv">
 
-                  ${
-                    expertise.proof
-                      ? `
-                        <p class="tag proof">
-                          <a href="#/realisations/${expertise.proof}">
-                            → ${
-                              T(
-                                D.projects.find(
-                                  project =>
-                                    project.id ===
-                                    expertise.proof
-                                ).title
-                              )
-                            }
-                          </a>
-                        </p>
-                      `
-                      : ""
-                  }
+                        <h3>
+                          ${T(expertise.n)}
+                        </h3>
 
-                </div>
-              `
-            )
-            .join("")}
+                        <ul>
+
+                          ${list(expertise.items)
+                            .map(
+                              item =>
+                                `<li>${item}</li>`
+                            )
+                            .join("")}
+
+                        </ul>
+
+                        ${
+                          proofProject
+                            ? `
+                              <p class="tag proof">
+                                <a href="#/realisations/${expertise.proof}">
+                                  → ${T(
+                                    proofProject.title
+                                  )}
+                                </a>
+                              </p>
+                            `
+                            : ""
+                        }
+
+                      </div>
+                    `;
+                  })
+                  .join("")
+              : ""
+          }
 
         </div>
 
@@ -669,24 +754,31 @@ const pages = {
     </div>
   `,
 
-
-  /* -------------------------------------------------------
-     REALISATIONS
-  ------------------------------------------------------- */
-
   realisations: argument => {
 
     const filter =
-      argument && argument.startsWith("f:")
+      argument &&
+      argument.startsWith("f:")
         ? argument.slice(2)
         : "";
 
-    const project =
-      D.projects.find(item => item.id === argument);
+    const project = Array.isArray(D.projects)
+      ? D.projects.find(
+          item => item.id === argument
+        )
+      : null;
 
     if (project) {
       return projectPage(project);
     }
+
+    const projects = Array.isArray(D.projects)
+      ? D.projects
+      : [];
+
+    const categories = Array.isArray(D.categories)
+      ? D.categories
+      : [];
 
     return `
       <div class="page">
@@ -695,32 +787,45 @@ const pages = {
 
           <h1>${u("nav")[2]}</h1>
 
-          <div class="filters" role="group">
+          <div
+            class="filters"
+            role="group"
+            aria-label="${u("nav")[2]}"
+          >
 
-            ${
-              ["", ...D.categories.map(c => c.id)]
-                .map(
-                  id => `
-                    <button
-                      data-f="${id}"
-                      class="${id === filter ? "on" : ""}">
-                      ${id ? cat(id) : u("all")}
-                    </button>
-                  `
-                )
-                .join("")
-            }
+            ${[
+              "",
+              ...categories.map(c => c.id)
+            ]
+              .map(
+                id => `
+                  <button
+                    type="button"
+                    data-f="${id}"
+                    class="${id === filter ? "on" : ""}"
+                  >
+                    ${
+                      id
+                        ? cat(id)
+                        : u("all")
+                    }
+                  </button>
+                `
+              )
+              .join("")}
 
           </div>
 
-
           <div class="grid" id="pg">
 
-            ${D.projects
+            ${projects
               .filter(
                 project =>
                   !filter ||
-                  project.cat.includes(filter)
+                  (
+                    Array.isArray(project.cat) &&
+                    project.cat.includes(filter)
+                  )
               )
               .map(card)
               .join("")}
@@ -733,14 +838,9 @@ const pages = {
     `;
   },
 
-
-  /* -------------------------------------------------------
-     RECHERCHE
-  ------------------------------------------------------- */
-
   recherche: () => {
 
-    const r = D.research;
+    const r = D.research || {};
 
     return `
       <div class="page">
@@ -749,24 +849,36 @@ const pages = {
 
           <h1>${u("nav")[3]}</h1>
 
-
           <div class="research-intro">
 
-            ${block("Master", r.education)}
+            ${block(
+              "Master",
+              r.education
+            )}
 
-            ${block(u("st"), r.status)}
+            ${block(
+              u("st"),
+              r.status
+            )}
 
-            ${block(u("thesis"), r.thesis)}
+            ${block(
+              u("thesis"),
+              r.thesis
+            )}
 
-            ${block(u("q"), r.question)}
+            ${block(
+              u("q"),
+              r.question
+            )}
 
           </div>
 
-
-          <a class="btn o" href="#/realisations/memoire">
+          <a
+            class="btn o"
+            href="#/realisations/memoire"
+          >
             → ${u("thesis")}
           </a>
-
 
           <section class="subsection">
 
@@ -778,8 +890,15 @@ const pages = {
                 .map(
                   certification => `
                     <div class="cert-item">
-                      <span class="cert-mark">✓</span>
-                      <span>${certification}</span>
+
+                      <span class="cert-mark">
+                        ✓
+                      </span>
+
+                      <span>
+                        ${certification}
+                      </span>
+
                     </div>
                   `
                 )
@@ -789,12 +908,17 @@ const pages = {
 
           </section>
 
-
-          ${block(u("pub"), r.publications)}
+          ${block(
+            u("pub"),
+            r.publications
+          )}
 
           ${
             T(r.talks)
-              ? block(u("talks"), r.talks)
+              ? block(
+                  u("talks"),
+                  r.talks
+                )
               : ""
           }
 
@@ -804,26 +928,26 @@ const pages = {
     `;
   },
 
-
-  /* -------------------------------------------------------
-     FORMA LAB
-  ------------------------------------------------------- */
-
   "forma-lab": () => {
 
-    const f = D.formalab;
+    const f = D.formalab || {};
 
     return `
       <div class="page">
 
         <div class="w">
 
-          <p class="title">FORMA LAB</p>
+          <p class="title">
+            FORMA LAB
+          </p>
 
-          <h1>${T(f.sig)}</h1>
+          <h1>
+            ${T(f.sig)}
+          </h1>
 
-          <p class="lead">${T(f.desc)}</p>
-
+          <p class="lead">
+            ${T(f.desc)}
+          </p>
 
           ${
             f.youtube
@@ -832,16 +956,17 @@ const pages = {
                   class="btn"
                   href="${f.youtube}"
                   target="_blank"
-                  rel="noopener">
+                  rel="noopener noreferrer"
+                >
                   ${u("yt")} ↗
                 </a>
               `
               : ""
           }
 
-
           ${
-            f.items && f.items.length
+            Array.isArray(f.items) &&
+            f.items.length
               ? `
                 <div class="grid forma-items">
 
@@ -852,10 +977,9 @@ const pages = {
                           class="card"
                           href="${item.url}"
                           target="_blank"
-                          rel="noopener">
-
+                          rel="noopener noreferrer"
+                        >
                           ${T(item.t)}
-
                         </a>
                       `
                     )
@@ -872,49 +996,125 @@ const pages = {
     `;
   },
 
+  contact: () => {
 
-  /* -------------------------------------------------------
-     CONTACT
-  ------------------------------------------------------- */
+    const links = D.links || {};
+    const formalab = D.formalab || {};
 
-  contact: () => `
-    <div class="page">
+    return `
+      <div class="page">
 
-      <div class="w">
+        <div class="w">
 
-        <p class="title">
-          ${u("nav")[5]}
-        </p>
+          <p class="title">
+            ${u("nav")[5]}
+          </p>
 
-        <h1>${u("contactTitle")}</h1>
+          <h1>
+            ${u("contactTitle")}
+          </h1>
 
-        <p class="lead">
-          ${u("contactText")}
-        </p>
+          <p class="lead">
+            ${u("contactText")}
+          </p>
 
+          <div class="contact-grid">
 
-        <div class="contact-grid">
+            ${
+              links.email
+                ? `
+                  <div class="contact-card">
 
+                    <span class="tag">
+                      ${u("email")}
+                    </span>
 
-          ${
-            D.links.email
-              ? `
-                <div class="contact-card">
+                    <h3>
+                      <a href="mailto:${links.email}">
+                        ${links.email}
+                      </a>
+                    </h3>
 
-                  <span class="tag">
-                    ${u("email")}
-                  </span>
-
-                  <h3>
-                    <a href="mailto:${D.links.email}">
-                      ${D.links.email}
+                    <a
+                      class="btn o"
+                      href="mailto:${links.email}"
+                    >
+                      ${u("mail")} →
                     </a>
-                  </h3>
+
+                  </div>
+                `
+                : ""
+            }
+
+            ${
+              links.linkedin
+                ? `
+                  <div class="contact-card">
+
+                    <span class="tag">
+                      ${u("linkedin")}
+                    </span>
+
+                    <h3>
+                      LinkedIn
+                    </h3>
+
+                    <a
+                      class="btn o"
+                      href="${links.linkedin}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      ${u("linkedin")} →
+                    </a>
+
+                  </div>
+                `
+                : ""
+            }
+
+            ${
+              formalab.youtube
+                ? `
+                  <div class="contact-card">
+
+                    <span class="tag">
+                      ${u("yt")}
+                    </span>
+
+                    <h3>
+                      FORMA LAB
+                    </h3>
+
+                    <a
+                      class="btn o"
+                      href="${formalab.youtube}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      ${u("yt")} →
+                    </a>
+
+                  </div>
+                `
+                : ""
+            }
+
+          </div>
+
+          ${
+            S.cv
+              ? `
+                <div style="margin-top:48px">
 
                   <a
-                    class="btn o"
-                    href="mailto:${D.links.email}">
-                    ${u("mail")} →
+                    class="btn"
+                    href="${S.cv}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    ${u("cv")}
                   </a>
 
                 </div>
@@ -922,220 +1122,164 @@ const pages = {
               : ""
           }
 
-
           ${
-            D.links.linkedin
+            S.formAction
               ? `
-                <div class="contact-card">
+                <form
+                  action="${S.formAction}"
+                  method="post"
+                >
 
-                  <span class="tag">
-                    ${u("linkedin")}
-                  </span>
+                  <input
+                    name="name"
+                    required
+                    aria-label="Nom"
+                    placeholder="Nom"
+                  >
 
-                  <h3>
-                    LinkedIn
-                  </h3>
+                  <input
+                    name="email"
+                    type="email"
+                    required
+                    aria-label="Email"
+                    placeholder="Email"
+                  >
 
-                  <a
-                    class="btn o"
-                    href="${D.links.linkedin}"
-                    target="_blank"
-                    rel="noopener">
-                    ${u("linkedin")} →
-                  </a>
+                  <textarea
+                    name="message"
+                    rows="5"
+                    required
+                    aria-label="Message"
+                    placeholder="Message"
+                  ></textarea>
 
-                </div>
-              `
-              : ""
-          }
+                  <input
+                    name="_gotcha"
+                    style="display:none"
+                    tabindex="-1"
+                    autocomplete="off"
+                  >
 
+                  <button
+                    class="btn"
+                    type="submit"
+                  >
+                    ${u("send")}
+                  </button>
 
-          ${
-            D.formalab && D.formalab.youtube
-              ? `
-                <div class="contact-card">
-
-                  <span class="tag">
-                    ${u("yt")}
-                  </span>
-
-                  <h3>
-                    FORMA LAB
-                  </h3>
-
-                  <a
-                    class="btn o"
-                    href="${D.formalab.youtube}"
-                    target="_blank"
-                    rel="noopener">
-                    ${u("yt")} →
-                  </a>
-
-                </div>
+                </form>
               `
               : ""
           }
 
         </div>
 
-
-        ${
-          S.cv
-            ? `
-              <div style="margin-top:48px">
-
-                <a
-                  class="btn"
-                  href="${S.cv}"
-                  target="_blank">
-                  ${u("cv")}
-                </a>
-
-              </div>
-            `
-            : ""
-        }
-
-
-        ${
-          S.formAction
-            ? `
-              <form
-                action="${S.formAction}"
-                method="post">
-
-                <input
-                  name="name"
-                  required
-                  aria-label="Nom"
-                  placeholder="Nom">
-
-                <input
-                  name="email"
-                  type="email"
-                  required
-                  aria-label="Email"
-                  placeholder="Email">
-
-                <textarea
-                  name="message"
-                  rows="5"
-                  required
-                  aria-label="Message"
-                  placeholder="Message">
-                </textarea>
-
-                <input
-                  name="_gotcha"
-                  style="display:none"
-                  tabindex="-1"
-                  autocomplete="off">
-
-                <button class="btn">
-                  ${u("send")}
-                </button>
-
-              </form>
-            `
-            : ""
-        }
-
       </div>
-
-    </div>
-  `
+    `;
+  }
 };
-
-
-/* =========================================================
-   RENDER
-========================================================= */
 
 function render() {
 
-  const parts = location.hash
-    .replace("#/", "")
-    .split("/");
+  const hash =
+    location.hash
+      .replace(/^#\/?/, "");
 
-  const key = parts[0] || "home";
+  const parts =
+    hash.split("/");
 
-  const argument = parts[1];
+  const key =
+    parts[0] || "home";
 
-  const main = document.getElementById("main");
+  const argument =
+    parts[1] || "";
 
+  const main =
+    document.getElementById("main");
+
+  const nav =
+    document.getElementById("nav");
+
+  const foot =
+    document.getElementById("foot");
+
+  if (!main || !nav || !foot) {
+    console.error(
+      "Structure HTML introuvable : #nav, #main ou #foot manque dans index.html."
+    );
+    return;
+  }
 
   document.documentElement.lang = L;
 
-
-  /* -------------------------------------------------------
-     NAVIGATION
-  ------------------------------------------------------- */
-
-  document.getElementById("nav").innerHTML = `
-
+  nav.innerHTML = `
     ${
       S.draft
-        ? `<div class="draft">${u("draft")}</div>`
+        ? `
+          <div class="draft">
+            ${u("draft")}
+          </div>
+        `
         : ""
     }
 
-
     <div class="w">
 
-      <a class="brand" href="#/">
-        ${P.name}
+      <a
+        class="brand"
+        href="#/"
+        aria-label="Accueil"
+      >
+        ${T(P.name)}
       </a>
 
+      <nav id="mn" aria-label="Navigation principale">
 
-      <nav id="mn">
-
-        ${R.map(
-          (route, index) => `
-            <a
-              href="#/${route}"
-              class="${route === key ? "on" : ""}">
-              ${u("nav")[index]}
-            </a>
-          `
-        ).join("")}
+        ${R
+          .map(
+            (route, index) => `
+              <a
+                href="#/${route}"
+                class="${route === key ? "on" : ""}"
+              >
+                ${u("nav")[index]}
+              </a>
+            `
+          )
+          .join("")}
 
       </nav>
-
 
       <button
         class="lang"
         id="lg"
         type="button"
-        aria-label="Change language">
+        aria-label="Change language"
+      >
         ${L === "fr" ? "EN" : "FR"}
       </button>
-
 
       <button
         class="bg"
         id="bg"
         type="button"
-        aria-label="Menu">
+        aria-label="Menu"
+        aria-expanded="false"
+      >
         ☰
       </button>
 
     </div>
   `;
 
-
-  /* -------------------------------------------------------
-     PAGE
-  ------------------------------------------------------- */
+  const page =
+    pages[key] || pages.home;
 
   main.innerHTML =
-    (pages[key] || pages.home)(argument);
+    page(argument);
 
-
-  /* -------------------------------------------------------
-     TITLE
-  ------------------------------------------------------- */
-
-  const routeIndex = R.indexOf(key);
+  const routeIndex =
+    R.indexOf(key);
 
   document.title =
     key === "home"
@@ -1146,29 +1290,29 @@ function render() {
             : P.name
         } | ${P.name}`;
 
-
-  /* -------------------------------------------------------
-     FOOTER
-  ------------------------------------------------------- */
-
-  document.getElementById("foot").innerHTML = `
-
+  foot.innerHTML = `
     <div class="w">
 
       © ${new Date().getFullYear()}
-      ${P.name}
-
-      ·
-
-      <a
-        href="${D.links.linkedin}"
-        target="_blank"
-        rel="noopener">
-        LinkedIn
-      </a>
+      ${T(P.name)}
 
       ${
-        D.links.email
+        D.links?.linkedin
+          ? `
+            ·
+            <a
+              href="${D.links.linkedin}"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              LinkedIn
+            </a>
+          `
+          : ""
+      }
+
+      ${
+        D.links?.email
           ? `
             ·
             <a href="mailto:${D.links.email}">
@@ -1181,29 +1325,27 @@ function render() {
     </div>
   `;
 
-
-  /* -------------------------------------------------------
-     LANGUAGE
-  ------------------------------------------------------- */
-
   const languageButton =
     document.getElementById("lg");
 
   if (languageButton) {
+
     languageButton.onclick = () => {
 
-      L = L === "fr" ? "en" : "fr";
+      L =
+        L === "fr"
+          ? "en"
+          : "fr";
 
-      localStorage.setItem("lang", L);
+      localStorage.setItem(
+        "lang",
+        L
+      );
 
       render();
+
     };
   }
-
-
-  /* -------------------------------------------------------
-     MOBILE MENU
-  ------------------------------------------------------- */
 
   const menuButton =
     document.getElementById("bg");
@@ -1214,15 +1356,17 @@ function render() {
   if (menuButton && menu) {
 
     menuButton.onclick = () => {
-      menu.classList.toggle("open");
+
+      const opened =
+        menu.classList.toggle("open");
+
+      menuButton.setAttribute(
+        "aria-expanded",
+        opened ? "true" : "false"
+      );
+
     };
-
   }
-
-
-  /* -------------------------------------------------------
-     PROJECT FILTERS
-  ------------------------------------------------------- */
 
   document
     .querySelectorAll(".filters button")
@@ -1235,84 +1379,105 @@ function render() {
 
         location.hash =
           "#/realisations" +
-          (filter ? `/f:${filter}` : "");
+          (
+            filter
+              ? `/f:${filter}`
+              : ""
+          );
 
       };
 
     });
 
-
-  /* -------------------------------------------------------
-     CLOSE MOBILE MENU AFTER NAVIGATION
-  ------------------------------------------------------- */
-
   document
     .querySelectorAll("#mn a")
     .forEach(link => {
 
-      link.addEventListener("click", () => {
+      link.addEventListener(
+        "click",
+        () => {
 
-        if (menu) {
-          menu.classList.remove("open");
+          if (menu) {
+            menu.classList.remove("open");
+          }
+
+          if (menuButton) {
+            menuButton.setAttribute(
+              "aria-expanded",
+              "false"
+            );
+          }
+
         }
-
-      });
+      );
 
     });
 
-
-  /* -------------------------------------------------------
-     REVEAL ANIMATION
-  ------------------------------------------------------- */
-
-  if ("IntersectionObserver" in window) {
+  if (
+    "IntersectionObserver" in window
+  ) {
 
     const observer =
-      new IntersectionObserver(entries => {
+      new IntersectionObserver(
+        entries => {
 
-        entries.forEach(entry => {
+          entries.forEach(
+            entry => {
 
-          if (entry.isIntersecting) {
+              if (
+                entry.isIntersecting
+              ) {
 
-            entry.target.classList.add("in");
+                entry.target.classList.add(
+                  "in"
+                );
 
-            observer.unobserve(entry.target);
+                observer.unobserve(
+                  entry.target
+                );
 
-          }
+              }
 
-        });
+            }
+          );
 
-      });
-
+        }
+      );
 
     document
       .querySelectorAll(".rv")
-      .forEach(element => {
-        observer.observe(element);
-      });
+      .forEach(element =>
+        observer.observe(element)
+      );
+
+  } else {
+
+    document
+      .querySelectorAll(".rv")
+      .forEach(element =>
+        element.classList.add("in")
+      );
 
   }
-
-
-  /* -------------------------------------------------------
-     SCROLL TOP
-  ------------------------------------------------------- */
 
   window.scrollTo({
     top: 0,
     behavior: "instant"
   });
-
 }
-
-
-/* =========================================================
-   ROUTER
-========================================================= */
 
 window.addEventListener(
   "hashchange",
   render
 );
 
-render();
+document.addEventListener(
+  "DOMContentLoaded",
+  render
+);
+
+if (
+  document.readyState !== "loading"
+) {
+  render();
+}
