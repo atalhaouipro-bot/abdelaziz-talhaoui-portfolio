@@ -45,8 +45,8 @@ window.DATA = {
         en: "My work sits at the intersection of several dimensions: needs analysis, instructional design, content development, trainer support, integration of digital tools and training evaluation. I am particularly interested in the alignment between learning objectives, learning activities, support mechanisms and expected outcomes in professional practice."
       },
       {
-        fr: "En parallèle de mon activité professionnelle, je poursuis un Master en Mesure et Évaluation en Éducation et Formation à la Faculté des Sciences de l’Éducation de Rabat. Mes travaux portent notamment sur l’évaluation de la formation et sur une question qui guide ma démarche : comment mieux apprécier le transfert des acquis de la formation dans les pratiques professionnelles ?",
-        en: "Alongside my professional activity, I am pursuing a Master's degree in Measurement and Evaluation in Education and Training at the Faculty of Educational Sciences in Rabat. My work focuses particularly on training evaluation and on a question that guides my approach: how can the transfer of learning into professional practice be better assessed?"
+        fr: "Parallèlement à mon activité professionnelle, j'ai obtenu un Master en Mesure et Évaluation en Éducation et Formation à la Faculté des Sciences de l'Éducation de Rabat. Mes travaux ont porté notamment sur l'évaluation de la formation, autour d'une question qui continue de guider ma démarche : comment mieux apprécier le transfert des acquis de la formation dans les pratiques professionnelles?",
+        en: "Alongside my professional career, I earned a Master's degree in Measurement and Assessment in Education and Training from the Faculty of Education Sciences in Rabat. My work focused in particular on training evaluation, centered on a question that continues to guide my approach: how can we better assess the transfer of learning from training into professional practice?"
       }
     ],
 
