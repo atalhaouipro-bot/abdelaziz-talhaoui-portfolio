@@ -591,8 +591,8 @@ window.DATA = {
       },
 
       context: {
-        fr: "Depuis septembre 2025, je participe à la conception et au déploiement des parcours de formation sur la plateforme Maharat de la FMPS, en collaboration avec l’équipe de création des contenus, l’équipe E-learning et la cheffe de division.",
-        en: "Since September 2025, I have contributed to the design and deployment of training pathways on the FMPS Maharat platform, working with the content creation team, the E-learning team and the division manager."
+        fr: "Depuis septembre 2025, je participe à la conception et au déploiement des parcours de formation sur la plateforme Maharat de la FMPS, en collaboration avec l’équipe de création des contenus (Division Formation), l’équipe E-learning (Division Planification et évaluation de la formation)",
+        en: "Since September 2025, I have contributed to the design and deployment of training pathways on the FMPS Maharat platform, in collaboration with the content creation team (Training Division) and the e-learning team (Training Planning and Evaluation Division)"
       },
 
       need: {
