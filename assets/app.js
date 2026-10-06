@@ -591,27 +591,48 @@ const pages = {
 
         <h1>${u("about")}</h1>
 
-        <div class="about-content">
+        <div class="about-grid">
 
-          ${
-            Array.isArray(P.about)
-              ? P.about
-                  .filter(
-                    item => T(item) || S.draft
-                  )
-                  .map(
-                    item => `
-                      <p class="lead">
-                        ${val(item)}
-                      </p>
-                    `
-                  )
-                  .join("")
-              : ""
-          }
+  <aside class="about-identity">
+    <div class="about-monogram" aria-hidden="true">AT</div>
 
-        </div>
+    <div class="about-photo-wrap">
+      <img
+        class="about-photo"
+        src="assets/abdelaziz-talhaoui-photo.jpg"
+        alt="Abdelaziz Talhaoui"
+        loading="lazy"
+      >
+    </div>
 
+    <div class="about-identity-text">
+      <p class="about-name">${T(P.name)}</p>
+      <p class="about-role">${T(P.title)}</p>
+    </div>
+  </aside>
+
+  <div class="about-content">
+
+    ${
+      Array.isArray(P.about)
+        ? P.about
+            .filter(
+              item => T(item) || S.draft
+            )
+            .map(
+              item => `
+                <p class="lead">
+                  ${val(item)}
+                </p>
+              `
+            )
+            .join("")
+        : ""
+    }
+
+  </div>
+
+</div>
         ${block(u("vis"), P.vision)}
 
         ${block(u("met"), P.method)}
