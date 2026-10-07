@@ -50,30 +50,33 @@
     Formulaire statique invisible utilisé comme blueprint pour Netlify Forms.
     Le formulaire visible est rendu par app.js.
   -->
-  <form
-    name="contact"
-    method="POST"
-    data-netlify="true"
-    data-netlify-honeypot="bot-field"
-    hidden
-  >
-    <input type="hidden" name="form-name" value="contact">
+ <form
+  name="contact"
+  method="POST"
+  data-netlify="true"
+  data-netlify-honeypot="bot-field"
+  hidden
+>
+  <input type="hidden" name="form-name" value="contact">
 
-    <input name="name">
-    <input name="email">
-    <input name="phone">
-    <input name="organization">
-    <select name="request-type">
-      <option value=""></option>
-      <option value="Projet de formation"></option>
-      <option value="Ingénierie pédagogique"></option>
-      <option value="Évaluation / mesure"></option>
-      <option value="Proposition de partenariat"></option>
-      <option value="Autre"></option>
-    </select>
-    <textarea name="message"></textarea>
-    <input name="bot-field">
-  </form>
+  <input name="name">
+  <input name="email">
+  <input name="phone">
+  <input name="organization">
+
+  <select name="request-type">
+    <option value="">—</option>
+    <option value="Projet de formation">Projet de formation</option>
+    <option value="Ingénierie pédagogique">Ingénierie pédagogique</option>
+    <option value="Évaluation / mesure">Évaluation / mesure</option>
+    <option value="Proposition de partenariat">Proposition de partenariat</option>
+    <option value="Autre">Autre</option>
+  </select>
+
+  <textarea name="message"></textarea>
+
+  <input name="bot-field">
+</form>
 
   <header id="nav"></header>
 
