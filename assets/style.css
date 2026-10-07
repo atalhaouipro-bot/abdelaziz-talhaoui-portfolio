@@ -1582,7 +1582,29 @@ section:not(.hero) + section:not(.hero) {
   min-height: 230px;
 }
 
+/* ---------- YouTube channel image ---------- */
 
+.channel-preview-link {
+  display: block;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.channel-preview-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+  transition:
+    transform .35s var(--ease),
+    opacity .35s ease;
+}
+
+.channel-preview-link:hover .channel-preview-image {
+  transform: scale(1.015);
+  opacity: .96;
+}
 /* =========================================================
    CONTACT
    ========================================================= */
