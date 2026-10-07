@@ -196,11 +196,6 @@ const U = {
 
 const u = key => U[L]?.[key] ?? U.fr[key] ?? key;
 
-/*
-  Navigation principale.
-  Cette constante était absente dans la version précédente
-  et provoquait l'erreur "R is not defined".
-*/
 const R = [
   "parcours",
   "expertises",
@@ -404,11 +399,8 @@ const projectPage = project => {
         <div class="project-content">
 
           ${block(u("need"), project.need)}
-
           ${block(u("goal"), project.goal)}
-
           ${block(u("role"), project.role)}
-
           ${block(u("app"), project.approach)}
 
           ${listBlock(
@@ -417,9 +409,7 @@ const projectPage = project => {
           )}
 
           ${block(u("tools"), project.tools)}
-
           ${block(u("res"), project.results)}
-
           ${block(u("imp"), project.impact)}
 
           ${
@@ -668,7 +658,6 @@ const pages = {
         </div>
 
         ${block(u("vis"), P.vision)}
-
         ${block(u("met"), P.method)}
 
         <h2 class="section-title">
@@ -732,7 +721,6 @@ const pages = {
         </div>
 
         ${productionsSection()}
-
         ${toolsSection()}
 
       </div>
@@ -986,7 +974,9 @@ const pages = {
   "forma-lab": () => {
 
     const f = D.formalab || {};
-    const items = Array.isArray(f.items) ? f.items.slice(0, 3) : [];
+    const items = Array.isArray(f.items)
+      ? f.items.slice(0, 3)
+      : [];
 
     return `
       <div class="page">
@@ -996,7 +986,10 @@ const pages = {
           <div class="page-hero forma-page-hero">
 
             <div class="page-hero-copy">
-              <p class="eyebrow">FORMA LAB · Transmission & contenu</p>
+
+              <p class="eyebrow">
+                FORMA LAB · Transmission & contenu
+              </p>
 
               <h1>
                 ${T(f.sig)}
@@ -1020,53 +1013,77 @@ const pages = {
                   `
                   : ""
               }
+
             </div>
 
             <div class="channel-preview">
 
               <div class="channel-preview-top">
                 <span class="youtube-badge">▶</span>
-                <span>APERÇU DE LA CHAÎNE</span>
+                <span>CHAÎNE YOUTUBE</span>
               </div>
 
-              <div class="channel-preview-body">
-
-                <div class="channel-avatar">FL</div>
-
-                <div class="channel-info">
-                  <strong>FORMA LAB</strong>
-                  <span>@FORMA_LAB</span>
-                  <p>
-                    Décrypter. Concevoir. Transformer.
-                  </p>
-                </div>
-
-              </div>
-
-              <div class="channel-topics">
-                <span>Ingénierie de formation</span>
-                <span>Pédagogie</span>
-                <span>Évaluation</span>
-                <span>Digital Learning</span>
-                <span>IA</span>
-              </div>
+              ${
+                f.youtube
+                  ? `
+                    <a
+                      class="channel-preview-link"
+                      href="${f.youtube}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Visiter la chaîne YouTube FORMA LAB"
+                    >
+                      <img
+                        src="assets/forma-lab-youtube.png"
+                        alt="Chaîne YouTube FORMA LAB"
+                        class="channel-preview-image"
+                        loading="lazy"
+                      >
+                    </a>
+                  `
+                  : `
+                    <img
+                      src="assets/forma-lab-youtube.png"
+                      alt="Chaîne YouTube FORMA LAB"
+                      class="channel-preview-image"
+                      loading="lazy"
+                    >
+                  `
+              }
 
               ${
                 items.length
                   ? `
                     <div class="channel-content">
-                      ${items.map(item => `
-                        <a
-                          class="channel-content-item"
-                          href="${item.url || f.youtube || "#"}"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <span class="play-mini">▶</span>
-                          <span>${T(item.t)}</span>
-                          <span>↗</span>
-                        </a>
-                      `).join("")}
+
+                      ${items
+                        .map(
+                          item => `
+                            <a
+                              class="channel-content-item"
+                              href="${
+                                item.url ||
+                                f.youtube ||
+                                "#"
+                              }"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <span class="play-mini">
+                                ▶
+                              </span>
+
+                              <span>
+                                ${T(item.t)}
+                              </span>
+
+                              <span>↗</span>
+
+                            </a>
+                          `
+                        )
+                        .join("")}
+
                     </div>
                   `
                   : ""
@@ -1080,25 +1097,54 @@ const pages = {
             Array.isArray(f.items) && f.items.length
               ? `
                 <section class="subsection forma-publications">
+
                   <div class="subsection-head">
-                    <p class="eyebrow">Publications</p>
-                    <h2>Une démarche de transmission professionnelle.</h2>
+
+                    <p class="eyebrow">
+                      Publications
+                    </p>
+
+                    <h2>
+                      Une démarche de transmission professionnelle.
+                    </h2>
+
                   </div>
 
                   <div class="grid forma-items">
-                    ${f.items.map(item => `
-                      <a
-                        class="card rv"
-                        href="${item.url || f.youtube || "#"}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <span class="tag">FORMA LAB</span>
-                        <h3>${T(item.t)}</h3>
-                        <span class="project-more">Découvrir →</span>
-                      </a>
-                    `).join("")}
+
+                    ${f.items
+                      .map(
+                        item => `
+                          <a
+                            class="card rv"
+                            href="${
+                              item.url ||
+                              f.youtube ||
+                              "#"
+                            }"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+
+                            <span class="tag">
+                              FORMA LAB
+                            </span>
+
+                            <h3>
+                              ${T(item.t)}
+                            </h3>
+
+                            <span class="project-more">
+                              Découvrir →
+                            </span>
+
+                          </a>
+                        `
+                      )
+                      .join("")}
+
                   </div>
+
                 </section>
               `
               : ""
@@ -1122,7 +1168,10 @@ const pages = {
           <div class="page-hero contact-hero">
 
             <div class="page-hero-copy">
-              <p class="eyebrow">${u("nav")[5]}</p>
+
+              <p class="eyebrow">
+                ${u("nav")[5]}
+              </p>
 
               <h1>
                 ${u("contactTitle")}
@@ -1143,8 +1192,13 @@ const pages = {
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        <span class="contact-direct-label">LinkedIn</span>
-                        <span>Profil professionnel ↗</span>
+                        <span class="contact-direct-label">
+                          LinkedIn
+                        </span>
+
+                        <span>
+                          Profil professionnel ↗
+                        </span>
                       </a>
                     `
                     : ""
@@ -1157,8 +1211,13 @@ const pages = {
                         class="contact-direct-item"
                         href="mailto:${links.email}"
                       >
-                        <span class="contact-direct-label">E-mail</span>
-                        <span>${links.email}</span>
+                        <span class="contact-direct-label">
+                          E-mail
+                        </span>
+
+                        <span>
+                          ${links.email}
+                        </span>
                       </a>
                     `
                     : ""
@@ -1168,8 +1227,13 @@ const pages = {
                   class="contact-direct-item"
                   href="tel:${PHONE.replace(/[^0-9+]/g, "")}"
                 >
-                  <span class="contact-direct-label">${u("phone")}</span>
-                  <span>${PHONE}</span>
+                  <span class="contact-direct-label">
+                    ${u("phone")}
+                  </span>
+
+                  <span>
+                    ${PHONE}
+                  </span>
                 </a>
 
                 ${
@@ -1181,8 +1245,13 @@ const pages = {
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        <span class="contact-direct-label">CV</span>
-                        <span>${u("cv")} ↗</span>
+                        <span class="contact-direct-label">
+                          CV
+                        </span>
+
+                        <span>
+                          ${u("cv")} ↗
+                        </span>
                       </a>
                     `
                     : ""
@@ -1216,82 +1285,136 @@ const pages = {
                 >
 
                 <p class="honeypot">
+
                   <label>
                     Ne pas remplir :
+
                     <input
                       name="bot-field"
                       tabindex="-1"
                       autocomplete="off"
                     >
+
                   </label>
+
                 </p>
 
                 <div class="form-grid">
 
                   <label class="form-field">
-                    <span>${u("formName")} *</span>
+
+                    <span>
+                      ${u("formName")} *
+                    </span>
+
                     <input
                       name="name"
                       type="text"
                       required
                       autocomplete="name"
                     >
+
                   </label>
 
                   <label class="form-field">
-                    <span>${u("formEmail")} *</span>
+
+                    <span>
+                      ${u("formEmail")} *
+                    </span>
+
                     <input
                       name="email"
                       type="email"
                       required
                       autocomplete="email"
                     >
+
                   </label>
 
                   <label class="form-field">
-                    <span>${u("formPhone")}</span>
+
+                    <span>
+                      ${u("formPhone")}
+                    </span>
+
                     <input
                       name="phone"
                       type="tel"
                       autocomplete="tel"
                     >
+
                   </label>
 
                   <label class="form-field">
-                    <span>${u("formOrg")}</span>
+
+                    <span>
+                      ${u("formOrg")}
+                    </span>
+
                     <input
                       name="organization"
                       type="text"
                       autocomplete="organization"
                     >
+
                   </label>
 
                   <label class="form-field form-field-full">
-                    <span>${u("formType")}</span>
+
+                    <span>
+                      ${u("formType")}
+                    </span>
+
                     <select name="request-type">
+
                       <option value="">—</option>
-                      <option value="Projet de formation">${u("formTypeProject")}</option>
-                      <option value="Ingénierie pédagogique">${u("formTypePedagogy")}</option>
-                      <option value="Évaluation / mesure">${u("formTypeEvaluation")}</option>
-                      <option value="Proposition de partenariat">${u("formTypePartnership")}</option>
-                      <option value="Autre">${u("formTypeOther")}</option>
+
+                      <option value="Projet de formation">
+                        ${u("formTypeProject")}
+                      </option>
+
+                      <option value="Ingénierie pédagogique">
+                        ${u("formTypePedagogy")}
+                      </option>
+
+                      <option value="Évaluation / mesure">
+                        ${u("formTypeEvaluation")}
+                      </option>
+
+                      <option value="Proposition de partenariat">
+                        ${u("formTypePartnership")}
+                      </option>
+
+                      <option value="Autre">
+                        ${u("formTypeOther")}
+                      </option>
+
                     </select>
+
                   </label>
 
                   <label class="form-field form-field-full">
-                    <span>${u("formMessage")} *</span>
+
+                    <span>
+                      ${u("formMessage")} *
+                    </span>
+
                     <textarea
                       name="message"
                       rows="7"
                       required
                       placeholder="${u("formMessagePlaceholder")}"
                     ></textarea>
+
                   </label>
 
                 </div>
 
                 <div class="form-bottom">
-                  <p>${u("formPrivacy")}</p>
+
+                  <p>
+                    ${u("formPrivacy")}
+                  </p>
 
                   <button
                     class="btn"
@@ -1299,6 +1422,7 @@ const pages = {
                   >
                     ${u("send")} →
                   </button>
+
                 </div>
 
                 <div
@@ -1347,9 +1471,11 @@ function render() {
     document.getElementById("foot");
 
   if (!main || !nav || !foot) {
+
     console.error(
       "Structure HTML introuvable : #nav, #main ou #foot manque dans index.html."
     );
+
     return;
   }
 
@@ -1376,7 +1502,10 @@ function render() {
         ${T(P.name)}
       </a>
 
-      <nav id="mn" aria-label="Navigation principale">
+      <nav
+        id="mn"
+        aria-label="Navigation principale"
+      >
 
         ${R
           .map(
@@ -1435,8 +1564,15 @@ function render() {
 
   foot.innerHTML = `
     <div class="w footer-inner">
-      <span>© ${new Date().getFullYear()} ${T(P.name)}</span>
-      <span>Ingénierie de formation · Ingénierie pédagogique · Évaluation</span>
+
+      <span>
+        © ${new Date().getFullYear()} ${T(P.name)}
+      </span>
+
+      <span>
+        Ingénierie de formation · Ingénierie pédagogique · Évaluation
+      </span>
+
     </div>
   `;
 
@@ -1460,6 +1596,7 @@ function render() {
       render();
 
     };
+
   }
 
   const menuButton =
@@ -1481,6 +1618,7 @@ function render() {
       );
 
     };
+
   }
 
   const contactForm =
@@ -1507,18 +1645,26 @@ function render() {
         }
 
         if (submit) {
+
           submit.disabled = true;
+
           submit.dataset.original =
             submit.textContent;
+
           submit.textContent =
             L === "fr"
               ? "Envoi…"
               : "Sending…";
+
         }
 
         if (status) {
-          status.className = "form-status";
+
+          status.className =
+            "form-status";
+
           status.textContent = "";
+
         }
 
         try {
@@ -1528,30 +1674,39 @@ function render() {
 
           const response =
             await fetch("/", {
+
               method: "POST",
+
               headers: {
                 "Content-Type":
                   "application/x-www-form-urlencoded"
               },
+
               body:
                 new URLSearchParams(
                   formData
                 ).toString()
+
             });
 
           if (!response.ok) {
+
             throw new Error(
               "Submission failed"
             );
+
           }
 
           contactForm.reset();
 
           if (status) {
+
             status.className =
               "form-status success";
+
             status.textContent =
               u("formSuccess");
+
           }
 
         } catch (error) {
@@ -1559,19 +1714,25 @@ function render() {
           console.error(error);
 
           if (status) {
+
             status.className =
               "form-status error";
+
             status.textContent =
               u("formError");
+
           }
 
         } finally {
 
           if (submit) {
+
             submit.disabled = false;
+
             submit.textContent =
               submit.dataset.original ||
               u("send");
+
           }
 
         }
@@ -1615,10 +1776,12 @@ function render() {
           }
 
           if (menuButton) {
+
             menuButton.setAttribute(
               "aria-expanded",
               "false"
             );
+
           }
 
         }
