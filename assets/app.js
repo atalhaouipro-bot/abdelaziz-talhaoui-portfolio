@@ -1,6 +1,7 @@
 const D = window.DATA;
 const S = D.settings;
 const P = D.profile;
+const PHONE = D.links?.phone || "+212689114914";
 
 let L = localStorage.getItem("lang") || S.lang || "fr";
 
@@ -74,6 +75,22 @@ const U = {
     mail: "Écrire",
     send: "Envoyer",
     yt: "Chaîne YouTube",
+    phone: "Téléphone",
+    formName: "Nom complet",
+    formEmail: "Adresse e-mail",
+    formPhone: "Téléphone",
+    formOrg: "Organisation / entreprise",
+    formType: "Nature de la demande",
+    formTypeProject: "Projet de formation",
+    formTypePedagogy: "Ingénierie pédagogique",
+    formTypeEvaluation: "Évaluation / mesure",
+    formTypePartnership: "Proposition de partenariat",
+    formTypeOther: "Autre demande",
+    formMessage: "Votre demande",
+    formMessagePlaceholder: "Présentez brièvement votre besoin, votre projet ou votre proposition…",
+    formPrivacy: "Vos informations sont utilisées uniquement pour répondre à votre demande.",
+    formSuccess: "Merci. Votre demande a bien été envoyée.",
+    formError: "Une erreur est survenue. Vous pouvez aussi m’écrire directement par e-mail.",
 
     contactTitle: "Travaillons ensemble",
     contactText:
@@ -148,6 +165,22 @@ const U = {
     mail: "Write",
     send: "Send",
     yt: "YouTube channel",
+    phone: "Phone",
+    formName: "Full name",
+    formEmail: "Email address",
+    formPhone: "Phone",
+    formOrg: "Organization / company",
+    formType: "Request type",
+    formTypeProject: "Training project",
+    formTypePedagogy: "Instructional design",
+    formTypeEvaluation: "Evaluation / measurement",
+    formTypePartnership: "Partnership proposal",
+    formTypeOther: "Other request",
+    formMessage: "Your request",
+    formMessagePlaceholder: "Briefly describe your need, project or proposal…",
+    formPrivacy: "Your information is used only to respond to your request.",
+    formSuccess: "Thank you. Your request has been sent successfully.",
+    formError: "Something went wrong. You can also contact me directly by email.",
 
     contactTitle: "Let's work together",
     contactText:
@@ -593,46 +626,47 @@ const pages = {
 
         <div class="about-grid">
 
-  <aside class="about-identity">
-    <div class="about-monogram" aria-hidden="true">AT</div>
+          <aside class="about-identity">
+            <div class="about-monogram" aria-hidden="true">AT</div>
 
-    <div class="about-photo-wrap">
-      <img
-        class="about-photo"
-        src="assets/abdelaziz-talhaoui-photo.jpg"
-        alt="Abdelaziz Talhaoui"
-        loading="lazy"
-      >
-    </div>
+            <div class="about-photo-wrap">
+              <img
+                class="about-photo"
+                src="assets/abdelaziz-talhaoui-photo.jpg"
+                alt="Abdelaziz Talhaoui"
+                loading="lazy"
+              >
+            </div>
 
-    <div class="about-identity-text">
-      <p class="about-name">${T(P.name)}</p>
-      <p class="about-role">${T(P.title)}</p>
-    </div>
-  </aside>
+            <div class="about-identity-text">
+              <p class="about-name">${T(P.name)}</p>
+              <p class="about-role">${T(P.title)}</p>
+            </div>
+          </aside>
 
-  <div class="about-content">
+          <div class="about-content">
 
-    ${
-      Array.isArray(P.about)
-        ? P.about
-            .filter(
-              item => T(item) || S.draft
-            )
-            .map(
-              item => `
-                <p class="lead">
-                  ${val(item)}
-                </p>
-              `
-            )
-            .join("")
-        : ""
-    }
+            ${
+              Array.isArray(P.about)
+                ? P.about
+                    .filter(
+                      item => T(item) || S.draft
+                    )
+                    .map(
+                      item => `
+                        <p class="lead">
+                          ${val(item)}
+                        </p>
+                      `
+                    )
+                    .join("")
+                : ""
+            }
 
-  </div>
+          </div>
 
-</div>
+        </div>
+
         ${block(u("vis"), P.vision)}
 
         ${block(u("met"), P.method)}
@@ -952,61 +986,120 @@ const pages = {
   "forma-lab": () => {
 
     const f = D.formalab || {};
+    const items = Array.isArray(f.items) ? f.items.slice(0, 3) : [];
 
     return `
       <div class="page">
 
         <div class="w">
 
-          <p class="title">
-            FORMA LAB
-          </p>
+          <div class="page-hero forma-page-hero">
 
-          <h1>
-            ${T(f.sig)}
-          </h1>
+            <div class="page-hero-copy">
+              <p class="eyebrow">FORMA LAB · Transmission & contenu</p>
 
-          <p class="lead">
-            ${T(f.desc)}
-          </p>
+              <h1>
+                ${T(f.sig)}
+              </h1>
 
-          ${
-            f.youtube
-              ? `
-                <a
-                  class="btn"
-                  href="${f.youtube}"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  ${u("yt")} ↗
-                </a>
-              `
-              : ""
-          }
+              <p class="lead">
+                ${T(f.desc)}
+              </p>
 
-          ${
-            Array.isArray(f.items) &&
-            f.items.length
-              ? `
-                <div class="grid forma-items">
+              ${
+                f.youtube
+                  ? `
+                    <a
+                      class="btn"
+                      href="${f.youtube}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      ${u("yt")} ↗
+                    </a>
+                  `
+                  : ""
+              }
+            </div>
 
-                  ${f.items
-                    .map(
-                      item => `
+            <div class="channel-preview">
+
+              <div class="channel-preview-top">
+                <span class="youtube-badge">▶</span>
+                <span>APERÇU DE LA CHAÎNE</span>
+              </div>
+
+              <div class="channel-preview-body">
+
+                <div class="channel-avatar">FL</div>
+
+                <div class="channel-info">
+                  <strong>FORMA LAB</strong>
+                  <span>@FORMA_LAB</span>
+                  <p>
+                    Décrypter. Concevoir. Transformer.
+                  </p>
+                </div>
+
+              </div>
+
+              <div class="channel-topics">
+                <span>Ingénierie de formation</span>
+                <span>Pédagogie</span>
+                <span>Évaluation</span>
+                <span>Digital Learning</span>
+                <span>IA</span>
+              </div>
+
+              ${
+                items.length
+                  ? `
+                    <div class="channel-content">
+                      ${items.map(item => `
                         <a
-                          class="card"
-                          href="${item.url}"
+                          class="channel-content-item"
+                          href="${item.url || f.youtube || "#"}"
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          ${T(item.t)}
+                          <span class="play-mini">▶</span>
+                          <span>${T(item.t)}</span>
+                          <span>↗</span>
                         </a>
-                      `
-                    )
-                    .join("")}
+                      `).join("")}
+                    </div>
+                  `
+                  : ""
+              }
 
-                </div>
+            </div>
+
+          </div>
+
+          ${
+            Array.isArray(f.items) && f.items.length
+              ? `
+                <section class="subsection forma-publications">
+                  <div class="subsection-head">
+                    <p class="eyebrow">Publications</p>
+                    <h2>Une démarche de transmission professionnelle.</h2>
+                  </div>
+
+                  <div class="grid forma-items">
+                    ${f.items.map(item => `
+                      <a
+                        class="card rv"
+                        href="${item.url || f.youtube || "#"}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <span class="tag">FORMA LAB</span>
+                        <h3>${T(item.t)}</h3>
+                        <span class="project-more">Découvrir →</span>
+                      </a>
+                    `).join("")}
+                  </div>
+                </section>
               `
               : ""
           }
@@ -1020,184 +1113,213 @@ const pages = {
   contact: () => {
 
     const links = D.links || {};
-    const formalab = D.formalab || {};
 
     return `
       <div class="page">
 
         <div class="w">
 
-          <p class="title">
-            ${u("nav")[5]}
-          </p>
+          <div class="page-hero contact-hero">
 
-          <h1>
-            ${u("contactTitle")}
-          </h1>
+            <div class="page-hero-copy">
+              <p class="eyebrow">${u("nav")[5]}</p>
 
-          <p class="lead">
-            ${u("contactText")}
-          </p>
+              <h1>
+                ${u("contactTitle")}
+              </h1>
 
-          <div class="contact-grid">
+              <p class="lead">
+                ${u("contactText")}
+              </p>
 
-            ${
-              links.email
-                ? `
-                  <div class="contact-card">
+              <div class="contact-direct">
 
-                    <span class="tag">
-                      ${u("email")}
-                    </span>
-
-                    <h3>
-                      <a href="mailto:${links.email}">
-                        ${links.email}
+                ${
+                  links.linkedin
+                    ? `
+                      <a
+                        class="contact-direct-item"
+                        href="${links.linkedin}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <span class="contact-direct-label">LinkedIn</span>
+                        <span>Profil professionnel ↗</span>
                       </a>
-                    </h3>
+                    `
+                    : ""
+                }
 
-                    <a
-                      class="btn o"
-                      href="mailto:${links.email}"
-                    >
-                      ${u("mail")} →
-                    </a>
+                ${
+                  links.email
+                    ? `
+                      <a
+                        class="contact-direct-item"
+                        href="mailto:${links.email}"
+                      >
+                        <span class="contact-direct-label">E-mail</span>
+                        <span>${links.email}</span>
+                      </a>
+                    `
+                    : ""
+                }
 
-                  </div>
-                `
-                : ""
-            }
+                <a
+                  class="contact-direct-item"
+                  href="tel:${PHONE.replace(/[^0-9+]/g, "")}"
+                >
+                  <span class="contact-direct-label">${u("phone")}</span>
+                  <span>${PHONE}</span>
+                </a>
 
-            ${
-              links.linkedin
-                ? `
-                  <div class="contact-card">
+                ${
+                  S.cv
+                    ? `
+                      <a
+                        class="contact-direct-item"
+                        href="${S.cv}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <span class="contact-direct-label">CV</span>
+                        <span>${u("cv")} ↗</span>
+                      </a>
+                    `
+                    : ""
+                }
 
-                    <span class="tag">
-                      ${u("linkedin")}
-                    </span>
+              </div>
 
-                    <h3>
-                      LinkedIn
-                    </h3>
+            </div>
 
-                    <a
-                      class="btn o"
-                      href="${links.linkedin}"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      ${u("linkedin")} →
-                    </a>
+            <div class="contact-form-shell">
 
-                  </div>
-                `
-                : ""
-            }
+              <div class="form-heading">
+                <span>01</span>
+                <strong>Envoyer une demande</strong>
+              </div>
 
-            ${
-              formalab.youtube
-                ? `
-                  <div class="contact-card">
+              <form
+                id="contactForm"
+                name="contact"
+                method="POST"
+                action="/"
+                data-netlify="true"
+                data-netlify-honeypot="bot-field"
+                novalidate
+              >
 
-                    <span class="tag">
-                      ${u("yt")}
-                    </span>
-
-                    <h3>
-                      FORMA LAB
-                    </h3>
-
-                    <a
-                      class="btn o"
-                      href="${formalab.youtube}"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      ${u("yt")} →
-                    </a>
-
-                  </div>
-                `
-                : ""
-            }
-
-          </div>
-
-          ${
-            S.cv
-              ? `
-                <div style="margin-top:48px">
-
-                  <a
-                    class="btn"
-                    href="${S.cv}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    ${u("cv")}
-                  </a>
-
-                </div>
-              `
-              : ""
-          }
-
-          ${
-            S.formAction
-              ? `
-                <form
-                  action="${S.formAction}"
-                  method="post"
+                <input
+                  type="hidden"
+                  name="form-name"
+                  value="contact"
                 >
 
-                  <input
-                    name="name"
-                    required
-                    aria-label="Nom"
-                    placeholder="Nom"
-                  >
+                <p class="honeypot">
+                  <label>
+                    Ne pas remplir :
+                    <input
+                      name="bot-field"
+                      tabindex="-1"
+                      autocomplete="off"
+                    >
+                  </label>
+                </p>
 
-                  <input
-                    name="email"
-                    type="email"
-                    required
-                    aria-label="Email"
-                    placeholder="Email"
-                  >
+                <div class="form-grid">
 
-                  <textarea
-                    name="message"
-                    rows="5"
-                    required
-                    aria-label="Message"
-                    placeholder="Message"
-                  ></textarea>
+                  <label class="form-field">
+                    <span>${u("formName")} *</span>
+                    <input
+                      name="name"
+                      type="text"
+                      required
+                      autocomplete="name"
+                    >
+                  </label>
 
-                  <input
-                    name="_gotcha"
-                    style="display:none"
-                    tabindex="-1"
-                    autocomplete="off"
-                  >
+                  <label class="form-field">
+                    <span>${u("formEmail")} *</span>
+                    <input
+                      name="email"
+                      type="email"
+                      required
+                      autocomplete="email"
+                    >
+                  </label>
+
+                  <label class="form-field">
+                    <span>${u("formPhone")}</span>
+                    <input
+                      name="phone"
+                      type="tel"
+                      autocomplete="tel"
+                    >
+                  </label>
+
+                  <label class="form-field">
+                    <span>${u("formOrg")}</span>
+                    <input
+                      name="organization"
+                      type="text"
+                      autocomplete="organization"
+                    >
+                  </label>
+
+                  <label class="form-field form-field-full">
+                    <span>${u("formType")}</span>
+                    <select name="request-type">
+                      <option value="">—</option>
+                      <option value="Projet de formation">${u("formTypeProject")}</option>
+                      <option value="Ingénierie pédagogique">${u("formTypePedagogy")}</option>
+                      <option value="Évaluation / mesure">${u("formTypeEvaluation")}</option>
+                      <option value="Proposition de partenariat">${u("formTypePartnership")}</option>
+                      <option value="Autre">${u("formTypeOther")}</option>
+                    </select>
+                  </label>
+
+                  <label class="form-field form-field-full">
+                    <span>${u("formMessage")} *</span>
+                    <textarea
+                      name="message"
+                      rows="7"
+                      required
+                      placeholder="${u("formMessagePlaceholder")}"
+                    ></textarea>
+                  </label>
+
+                </div>
+
+                <div class="form-bottom">
+                  <p>${u("formPrivacy")}</p>
 
                   <button
                     class="btn"
                     type="submit"
                   >
-                    ${u("send")}
+                    ${u("send")} →
                   </button>
+                </div>
 
-                </form>
-              `
-              : ""
-          }
+                <div
+                  id="formStatus"
+                  class="form-status"
+                  role="status"
+                  aria-live="polite"
+                ></div>
+
+              </form>
+
+            </div>
+
+          </div>
 
         </div>
 
       </div>
     `;
   }
+
 };
 
 function render() {
@@ -1312,37 +1434,9 @@ function render() {
         } | ${P.name}`;
 
   foot.innerHTML = `
-    <div class="w">
-
-      © ${new Date().getFullYear()}
-      ${T(P.name)}
-
-      ${
-        D.links?.linkedin
-          ? `
-            ·
-            <a
-              href="${D.links.linkedin}"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              LinkedIn
-            </a>
-          `
-          : ""
-      }
-
-      ${
-        D.links?.email
-          ? `
-            ·
-            <a href="mailto:${D.links.email}">
-              Email
-            </a>
-          `
-          : ""
-      }
-
+    <div class="w footer-inner">
+      <span>© ${new Date().getFullYear()} ${T(P.name)}</span>
+      <span>Ingénierie de formation · Ingénierie pédagogique · Évaluation</span>
     </div>
   `;
 
@@ -1387,6 +1481,104 @@ function render() {
       );
 
     };
+  }
+
+  const contactForm =
+    document.getElementById("contactForm");
+
+  if (contactForm) {
+
+    contactForm.addEventListener(
+      "submit",
+      async event => {
+
+        event.preventDefault();
+
+        const status =
+          document.getElementById("formStatus");
+
+        const submit =
+          contactForm.querySelector(
+            'button[type="submit"]'
+          );
+
+        if (!contactForm.reportValidity()) {
+          return;
+        }
+
+        if (submit) {
+          submit.disabled = true;
+          submit.dataset.original =
+            submit.textContent;
+          submit.textContent =
+            L === "fr"
+              ? "Envoi…"
+              : "Sending…";
+        }
+
+        if (status) {
+          status.className = "form-status";
+          status.textContent = "";
+        }
+
+        try {
+
+          const formData =
+            new FormData(contactForm);
+
+          const response =
+            await fetch("/", {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/x-www-form-urlencoded"
+              },
+              body:
+                new URLSearchParams(
+                  formData
+                ).toString()
+            });
+
+          if (!response.ok) {
+            throw new Error(
+              "Submission failed"
+            );
+          }
+
+          contactForm.reset();
+
+          if (status) {
+            status.className =
+              "form-status success";
+            status.textContent =
+              u("formSuccess");
+          }
+
+        } catch (error) {
+
+          console.error(error);
+
+          if (status) {
+            status.className =
+              "form-status error";
+            status.textContent =
+              u("formError");
+          }
+
+        } finally {
+
+          if (submit) {
+            submit.disabled = false;
+            submit.textContent =
+              submit.dataset.original ||
+              u("send");
+          }
+
+        }
+
+      }
+    );
+
   }
 
   document
