@@ -1847,13 +1847,10 @@ window.addEventListener(
   render
 );
 
-document.addEventListener(
-  "DOMContentLoaded",
-  render
+window.addEventListener(
+  "content-ready",
+  () => {
+    render();
+  },
+  { once: true }
 );
-
-if (
-  document.readyState !== "loading"
-) {
-  render();
-}
