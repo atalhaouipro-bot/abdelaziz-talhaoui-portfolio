@@ -18,17 +18,42 @@ const logoutBtn =
 
 
 /* =========================================================
-   MESSAGES
+   CONFIGURATION
 ========================================================= */
 
-const showLoginStatus = (message, type = "error") => {
-  loginStatus.textContent = message;
-  loginStatus.className = `status ${type}`;
+const sectionLabels = {
+  settings: "Paramètres",
+  profile: "Profil",
+  loop: "Approche professionnelle",
+  categories: "Catégories",
+  expertises: "Expertises",
+  experiences: "Expériences professionnelles",
+  projects: "Projets / Réalisations",
+  achievements: "Réalisations / Achievements",
+  research: "Recherche",
+  productions: "Productions",
+  tools: "Outils",
+  formalab: "FORMA LAB",
+  links: "Liens & Contact"
 };
 
 
 /* =========================================================
-   AFFICHAGE LOGIN / ADMIN
+   MESSAGES
+========================================================= */
+
+const showLoginStatus = (
+  message,
+  type = "error"
+) => {
+  loginStatus.textContent = message;
+  loginStatus.className =
+    `status ${type}`;
+};
+
+
+/* =========================================================
+   LOGIN / ADMIN
 ========================================================= */
 
 const showAdmin = () => {
@@ -50,14 +75,18 @@ const checkAdmin = async () => {
 
   const {
     data: { user }
-  } = await window.supabaseClient.auth.getUser();
+  } =
+    await window.supabaseClient.auth.getUser();
 
   if (!user) {
     showLogin();
     return false;
   }
 
-  const { data, error } =
+  const {
+    data,
+    error
+  } =
     await window.supabaseClient
       .from("admin_users")
       .select("user_id")
@@ -66,7 +95,9 @@ const checkAdmin = async () => {
 
   if (error || !data) {
 
-    await window.supabaseClient.auth.signOut();
+    await window.supabaseClient
+      .auth
+      .signOut();
 
     showLoginStatus(
       "Accès refusé : ce compte n'est pas administrateur."
@@ -82,437 +113,666 @@ const checkAdmin = async () => {
 
 
 /* =========================================================
-   CREATION D'UN CHAMP
+   UTILITAIRES
 ========================================================= */
 
-const createField = (
-  labelText,
-  value,
-  options = {}
-) => {
+const deepClone = value => {
 
-  const wrapper = document.createElement("div");
-
-  const label = document.createElement("label");
-  label.textContent = labelText;
-
-  let field;
-
-  if (options.textarea) {
-
-    field = document.createElement("textarea");
-
-    if (options.small) {
-      field.style.minHeight = "120px";
-    }
-
-  } else {
-
-    field = document.createElement("input");
-    field.type = "text";
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return value;
   }
 
-  field.value = value || "";
+  return JSON.parse(
+    JSON.stringify(value)
+  );
+};
 
-  wrapper.appendChild(label);
-  wrapper.appendChild(field);
 
-  return {
-    wrapper,
-    field
+const isObject = value =>
+  value !== null &&
+  typeof value === "object" &&
+  !Array.isArray(value);
+
+
+const isPrimitive = value =>
+  value === null ||
+  typeof value !== "object";
+
+
+const formatLabel = key => {
+
+  const labels = {
+
+    fr: "Français",
+
+    en: "English",
+
+    n: "Nom",
+
+    id: "Identifiant",
+
+    title: "Titre",
+
+    tagline: "Accroche",
+
+    sub: "Description courte",
+
+    about: "Présentation",
+
+    vision: "Vision",
+
+    method: "Méthode",
+
+    org: "Organisation",
+
+    role: "Poste",
+
+    dates: "Période",
+
+    context: "Contexte",
+
+    resp: "Responsabilités",
+
+    projects: "Projets",
+
+    achievements: "Réalisations",
+
+    impact: "Impact",
+
+    items: "Éléments",
+
+    proof: "Preuve / projet associé",
+
+    cat: "Catégories",
+
+    description: "Description",
+
+    link: "Lien",
+
+    url: "URL",
+
+    image: "Image",
+
+    name: "Nom",
+
+    category: "Catégorie",
+
+    type: "Type",
+
+    location: "Lieu",
+
+    email: "E-mail",
+
+    phone: "Téléphone",
+
+    linkedin: "LinkedIn",
+
+    youtube: "YouTube"
+
   };
+
+  if (labels[key]) {
+    return labels[key];
+  }
+
+  return key
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, char =>
+      char.toUpperCase()
+    );
 };
 
 
 /* =========================================================
-   INTERFACE PROFILE
+   CREATION D'UN CHAMP PRIMITIF
 ========================================================= */
 
-const renderProfileEditor = (row) => {
+const createPrimitiveField = ({
+  label,
+  value,
+  onChange,
+  multiline = false
+}) => {
 
-  const card = document.createElement("section");
-  card.className = "card";
+  const wrapper =
+    document.createElement("div");
 
-  const title = document.createElement("h2");
-  title.textContent = "Profil";
+  wrapper.style.marginBottom = "16px";
 
-  const description = document.createElement("p");
-  description.className = "muted";
-  description.textContent =
-    "Modifiez les informations principales de votre profil.";
+  const labelElement =
+    document.createElement("label");
 
-  card.appendChild(title);
-  card.appendChild(description);
+  labelElement.textContent =
+    label;
 
+  labelElement.style.display =
+    "block";
 
-  /* -------------------------------------------------------
-     NOM
-  ------------------------------------------------------- */
+  labelElement.style.marginBottom =
+    "7px";
 
-  const nameField =
-    createField(
-      "Nom",
-      row.content.name
-    );
-
-  card.appendChild(nameField.wrapper);
+  labelElement.style.fontWeight =
+    "600";
 
 
-  /* -------------------------------------------------------
-     TITRES
-  ------------------------------------------------------- */
+  let input;
 
-  const titleFr =
-    createField(
-      "Titre — Français",
-      row.content.title?.fr
-    );
+  if (multiline) {
 
-  const titleEn =
-    createField(
-      "Title — English",
-      row.content.title?.en
-    );
+    input =
+      document.createElement("textarea");
 
-  card.appendChild(titleFr.wrapper);
-  card.appendChild(titleEn.wrapper);
+    input.style.minHeight =
+      "110px";
 
+  } else {
 
-  /* -------------------------------------------------------
-     TAGLINE
-  ------------------------------------------------------- */
+    input =
+      document.createElement("input");
 
-  const taglineFr =
-    createField(
-      "Tagline — Français",
-      row.content.tagline?.fr,
-      { textarea: true, small: true }
-    );
-
-  const taglineEn =
-    createField(
-      "Tagline — English",
-      row.content.tagline?.en,
-      { textarea: true, small: true }
-    );
-
-  card.appendChild(taglineFr.wrapper);
-  card.appendChild(taglineEn.wrapper);
-
-
-  /* -------------------------------------------------------
-     SUBTITLE / DESCRIPTION COURTE
-  ------------------------------------------------------- */
-
-  const subFr =
-    createField(
-      "Description courte — Français",
-      row.content.sub?.fr,
-      { textarea: true }
-    );
-
-  const subEn =
-    createField(
-      "Short description — English",
-      row.content.sub?.en,
-      { textarea: true }
-    );
-
-  card.appendChild(subFr.wrapper);
-  card.appendChild(subEn.wrapper);
-
-
-  /* -------------------------------------------------------
-     ABOUT
-  ------------------------------------------------------- */
-
-  const aboutTitle =
-    document.createElement("h3");
-
-  aboutTitle.textContent =
-    "Présentation";
-
-  card.appendChild(aboutTitle);
-
-
-  const aboutFields = [];
-
-  const aboutData =
-    Array.isArray(row.content.about)
-      ? row.content.about
-      : [];
-
-
-  for (let i = 0; i < 3; i++) {
-
-    const blockTitle =
-      document.createElement("h4");
-
-    blockTitle.textContent =
-      `Paragraphe ${i + 1}`;
-
-    card.appendChild(blockTitle);
-
-
-    const fr =
-      createField(
-        `Français — paragraphe ${i + 1}`,
-        aboutData[i]?.fr,
-        { textarea: true }
-      );
-
-    const en =
-      createField(
-        `English — paragraph ${i + 1}`,
-        aboutData[i]?.en,
-        { textarea: true }
-      );
-
-    card.appendChild(fr.wrapper);
-    card.appendChild(en.wrapper);
-
-    aboutFields.push({
-      fr: fr.field,
-      en: en.field
-    });
+    input.type = "text";
   }
 
 
-  /* -------------------------------------------------------
-     VISION
-  ------------------------------------------------------- */
-
-  const visionTitle =
-    document.createElement("h3");
-
-  visionTitle.textContent =
-    "Vision";
-
-  card.appendChild(visionTitle);
+  input.value =
+    value === null ||
+    value === undefined
+      ? ""
+      : String(value);
 
 
-  const visionFr =
-    createField(
-      "Vision — Français",
-      row.content.vision?.fr,
-      { textarea: true }
-    );
+  input.addEventListener(
+    "input",
+    () => {
 
-  const visionEn =
-    createField(
-      "Vision — English",
-      row.content.vision?.en,
-      { textarea: true }
-    );
-
-  card.appendChild(visionFr.wrapper);
-  card.appendChild(visionEn.wrapper);
-
-
-  /* -------------------------------------------------------
-     METHODE
-  ------------------------------------------------------- */
-
-  const methodTitle =
-    document.createElement("h3");
-
-  methodTitle.textContent =
-    "Méthode";
-
-  card.appendChild(methodTitle);
-
-
-  const methodFr =
-    createField(
-      "Méthode — Français",
-      row.content.method?.fr,
-      { textarea: true }
-    );
-
-  const methodEn =
-    createField(
-      "Method — English",
-      row.content.method?.en,
-      { textarea: true }
-    );
-
-  card.appendChild(methodFr.wrapper);
-  card.appendChild(methodEn.wrapper);
-
-
-  /* -------------------------------------------------------
-     BOUTON ENREGISTRER
-  ------------------------------------------------------- */
-
-  const saveButton =
-    document.createElement("button");
-
-  saveButton.type = "button";
-  saveButton.className = "primary";
-  saveButton.textContent =
-    "Enregistrer les modifications";
-
-
-  const status =
-    document.createElement("div");
-
-  status.className = "status";
-
-
-  saveButton.addEventListener(
-    "click",
-    async () => {
-
-      saveButton.disabled = true;
-      saveButton.textContent =
-        "Enregistrement…";
-
-      status.className = "status";
-      status.textContent = "";
-
-
-      try {
-
-        const newContent = {
-
-          ...row.content,
-
-          name:
-            nameField.field.value.trim(),
-
-          title: {
-            fr: titleFr.field.value.trim(),
-            en: titleEn.field.value.trim()
-          },
-
-          tagline: {
-            fr: taglineFr.field.value.trim(),
-            en: taglineEn.field.value.trim()
-          },
-
-          sub: {
-            fr: subFr.field.value.trim(),
-            en: subEn.field.value.trim()
-          },
-
-          about:
-            aboutFields.map(item => ({
-              fr: item.fr.value.trim(),
-              en: item.en.value.trim()
-            })),
-
-          vision: {
-            fr: visionFr.field.value.trim(),
-            en: visionEn.field.value.trim()
-          },
-
-          method: {
-            fr: methodFr.field.value.trim(),
-            en: methodEn.field.value.trim()
-          }
-        };
-
-
-        const { error } =
-          await window.supabaseClient
-            .from("site_content")
-            .update({
-              content: newContent
-            })
-            .eq("section", "profile");
-
-
-        if (error) {
-          throw error;
-        }
-
-
-        row.content = newContent;
-
-
-        status.className =
-          "status success";
-
-        status.textContent =
-          "✓ Profil enregistré avec succès.";
-
-
-      } catch (error) {
-
-        console.error(error);
-
-        status.className =
-          "status error";
-
-        status.textContent =
-          `Erreur : ${error.message}`;
-
-      } finally {
-
-        saveButton.disabled = false;
-
-        saveButton.textContent =
-          "Enregistrer les modifications";
-      }
+      onChange(
+        input.value
+      );
 
     }
   );
 
 
-  card.appendChild(saveButton);
-  card.appendChild(status);
+  wrapper.appendChild(
+    labelElement
+  );
 
-  return card;
+  wrapper.appendChild(
+    input
+  );
+
+  return wrapper;
 };
 
 
 /* =========================================================
-   INTERFACE JSON POUR LES AUTRES SECTIONS
+   EDITION D'UN OBJET
 ========================================================= */
 
-const renderJsonEditor = (row) => {
+const renderObject = (
+  object,
+  onChange,
+  level = 0
+) => {
 
-  const card = document.createElement("section");
-  card.className = "card";
+  const container =
+    document.createElement("div");
 
-  const title = document.createElement("h2");
-  title.textContent = row.section;
+  container.style.marginLeft =
+    level > 0 ? "12px" : "0";
 
-  const info = document.createElement("p");
-  info.className = "muted";
+
+  Object.keys(object)
+    .forEach(key => {
+
+      const value =
+        object[key];
+
+
+      /* -----------------------------------------------
+         OBJET IMBRIQUE
+      ----------------------------------------------- */
+
+      if (isObject(value)) {
+
+        const group =
+          document.createElement("div");
+
+        group.style.border =
+          "1px solid #e5e7eb";
+
+        group.style.borderRadius =
+          "10px";
+
+        group.style.padding =
+          "18px";
+
+        group.style.marginBottom =
+          "18px";
+
+
+        const heading =
+          document.createElement("h3");
+
+        heading.textContent =
+          formatLabel(key);
+
+        heading.style.marginTop =
+          "0";
+
+        heading.style.marginBottom =
+          "15px";
+
+
+        group.appendChild(
+          heading
+        );
+
+
+        const child =
+          renderObject(
+            value,
+            newValue => {
+
+              object[key] =
+                newValue;
+
+              onChange(object);
+
+            },
+            level + 1
+          );
+
+
+        group.appendChild(child);
+
+        container.appendChild(group);
+
+        return;
+      }
+
+
+      /* -----------------------------------------------
+         TABLEAU
+      ----------------------------------------------- */
+
+      if (Array.isArray(value)) {
+
+        const group =
+          document.createElement("div");
+
+        group.style.border =
+          "1px solid #e5e7eb";
+
+        group.style.borderRadius =
+          "10px";
+
+        group.style.padding =
+          "18px";
+
+        group.style.marginBottom =
+          "18px";
+
+
+        const heading =
+          document.createElement("h3");
+
+        heading.textContent =
+          formatLabel(key);
+
+
+        group.appendChild(
+          heading
+        );
+
+
+        const list =
+          document.createElement("div");
+
+
+        value.forEach(
+          (item, index) => {
+
+            const itemWrapper =
+              document.createElement("div");
+
+            itemWrapper.style.border =
+              "1px solid #f0f0f0";
+
+            itemWrapper.style.borderRadius =
+              "8px";
+
+            itemWrapper.style.padding =
+              "14px";
+
+            itemWrapper.style.marginBottom =
+              "12px";
+
+
+            const itemTitle =
+              document.createElement("strong");
+
+            itemTitle.textContent =
+              `Élément ${index + 1}`;
+
+            itemWrapper.appendChild(
+              itemTitle
+            );
+
+
+            if (isObject(item)) {
+
+              itemWrapper.appendChild(
+                renderObject(
+                  item,
+                  newItem => {
+
+                    value[index] =
+                      newItem;
+
+                    onChange(object);
+
+                  },
+                  level + 1
+                )
+              );
+
+            } else {
+
+              const input =
+                document.createElement(
+                  "textarea"
+                );
+
+              input.value =
+                item === null
+                  ? ""
+                  : String(item);
+
+              input.style.minHeight =
+                "80px";
+
+
+              input.addEventListener(
+                "input",
+                () => {
+
+                  value[index] =
+                    input.value;
+
+                  onChange(object);
+
+                }
+              );
+
+
+              itemWrapper.appendChild(
+                input
+              );
+            }
+
+
+            const deleteButton =
+              document.createElement(
+                "button"
+              );
+
+            deleteButton.type =
+              "button";
+
+            deleteButton.className =
+              "danger";
+
+            deleteButton.textContent =
+              "Supprimer";
+
+
+            deleteButton.style.marginTop =
+              "10px";
+
+
+            deleteButton.addEventListener(
+              "click",
+              () => {
+
+                value.splice(
+                  index,
+                  1
+                );
+
+                renderCurrentSection();
+              }
+            );
+
+
+            itemWrapper.appendChild(
+              deleteButton
+            );
+
+
+            list.appendChild(
+              itemWrapper
+            );
+
+          }
+        );
+
+
+        group.appendChild(list);
+
+
+        const addButton =
+          document.createElement(
+            "button"
+          );
+
+        addButton.type =
+          "button";
+
+        addButton.className =
+          "secondary";
+
+        addButton.textContent =
+          "+ Ajouter";
+
+
+        addButton.addEventListener(
+          "click",
+          () => {
+
+            let newItem = "";
+
+
+            if (value.length > 0) {
+
+              newItem =
+                deepClone(
+                  value[0]
+                );
+
+            }
+
+
+            value.push(
+              newItem
+            );
+
+            renderCurrentSection();
+          }
+        );
+
+
+        group.appendChild(
+          addButton
+        );
+
+
+        container.appendChild(
+          group
+        );
+
+        return;
+      }
+
+
+      /* -----------------------------------------------
+         CHAMP TEXTE
+      ----------------------------------------------- */
+
+      const field =
+        createPrimitiveField({
+
+          label:
+            formatLabel(key),
+
+          value,
+
+          multiline:
+            typeof value === "string" &&
+            value.length > 120,
+
+          onChange:
+            newValue => {
+
+              object[key] =
+                newValue;
+
+              onChange(object);
+            }
+
+        });
+
+
+      container.appendChild(
+        field
+      );
+
+    });
+
+
+  return container;
+};
+
+
+/* =========================================================
+   VARIABLES DE SECTION
+========================================================= */
+
+let currentRows = [];
+
+let currentSectionRow = null;
+
+
+/* =========================================================
+   RENDRE UNE SECTION
+========================================================= */
+
+const renderSection = row => {
+
+  currentSectionRow =
+    row;
+
+
+  const card =
+    document.createElement(
+      "section"
+    );
+
+  card.className =
+    "card";
+
+
+  const title =
+    document.createElement(
+      "h2"
+    );
+
+  title.textContent =
+    sectionLabels[row.section] ||
+    formatLabel(row.section);
+
+
+  const info =
+    document.createElement(
+      "p"
+    );
+
+  info.className =
+    "muted";
 
   info.textContent =
     `Dernière modification : ${
-      new Date(row.updated_at)
-        .toLocaleString("fr-FR")
+      new Date(
+        row.updated_at
+      ).toLocaleString("fr-FR")
     }`;
 
 
-  const textarea =
-    document.createElement("textarea");
+  card.appendChild(title);
+  card.appendChild(info);
 
-  textarea.value =
-    JSON.stringify(
-      row.content,
-      null,
-      2
+
+  const editor =
+    document.createElement(
+      "div"
     );
 
-  textarea.dataset.section =
-    row.section;
+
+  const workingCopy =
+    deepClone(
+      row.content
+    );
+
+
+  const refreshEditor =
+    () => {
+
+      editor.innerHTML = "";
+
+      editor.appendChild(
+        renderObject(
+          workingCopy,
+          newValue => {
+
+            row.content =
+              newValue;
+
+          }
+        )
+      );
+    };
+
+
+  refreshEditor();
+
+
+  card.appendChild(
+    editor
+  );
 
 
   const saveButton =
-    document.createElement("button");
+    document.createElement(
+      "button"
+    );
 
-  saveButton.type = "button";
-  saveButton.className = "primary";
+  saveButton.type =
+    "button";
+
+  saveButton.className =
+    "primary";
+
   saveButton.textContent =
-    "Enregistrer";
+    "Enregistrer les modifications";
 
 
   const status =
-    document.createElement("div");
+    document.createElement(
+      "div"
+    );
 
   status.className =
     "status";
@@ -522,7 +782,9 @@ const renderJsonEditor = (row) => {
     "click",
     async () => {
 
-      saveButton.disabled = true;
+      saveButton.disabled =
+        true;
+
       saveButton.textContent =
         "Enregistrement…";
 
@@ -535,17 +797,14 @@ const renderJsonEditor = (row) => {
 
       try {
 
-        const content =
-          JSON.parse(
-            textarea.value
-          );
-
-
-        const { error } =
+        const {
+          error
+        } =
           await window.supabaseClient
             .from("site_content")
             .update({
-              content
+              content:
+                workingCopy
             })
             .eq(
               "section",
@@ -558,16 +817,24 @@ const renderJsonEditor = (row) => {
         }
 
 
+        row.content =
+          deepClone(
+            workingCopy
+          );
+
+
         status.className =
           "status success";
 
         status.textContent =
-          "✓ Modification enregistrée.";
+          "✓ Modifications enregistrées avec succès.";
 
 
       } catch (error) {
 
-        console.error(error);
+        console.error(
+          error
+        );
 
         status.className =
           "status error";
@@ -577,28 +844,46 @@ const renderJsonEditor = (row) => {
 
       } finally {
 
-        saveButton.disabled = false;
+        saveButton.disabled =
+          false;
 
         saveButton.textContent =
-          "Enregistrer";
+          "Enregistrer les modifications";
       }
 
     }
   );
 
 
-  card.appendChild(title);
-  card.appendChild(info);
-  card.appendChild(textarea);
-  card.appendChild(saveButton);
-  card.appendChild(status);
+  card.appendChild(
+    saveButton
+  );
+
+  card.appendChild(
+    status
+  );
+
 
   return card;
 };
 
 
 /* =========================================================
-   CHARGEMENT DES SECTIONS
+   VARIABLE DE RAFRAICHISSEMENT
+========================================================= */
+
+const renderCurrentSection = () => {
+
+  if (!currentSectionRow) {
+    return;
+  }
+
+  loadSections();
+};
+
+
+/* =========================================================
+   CHARGER TOUTES LES SECTIONS
 ========================================================= */
 
 const loadSections = async () => {
@@ -635,25 +920,23 @@ const loadSections = async () => {
   }
 
 
-  sectionsContainer.innerHTML = "";
+  currentRows =
+    data;
 
 
-  data.forEach(row => {
+  sectionsContainer.innerHTML =
+    "";
 
-    if (row.section === "profile") {
 
-      sectionsContainer.appendChild(
-        renderProfileEditor(row)
-      );
-
-    } else {
+  data.forEach(
+    row => {
 
       sectionsContainer.appendChild(
-        renderJsonEditor(row)
+        renderSection(row)
       );
+
     }
-
-  });
+  );
 };
 
 
@@ -687,8 +970,11 @@ loginForm.addEventListener(
     );
 
 
-    const { error } =
-      await window.supabaseClient.auth
+    const {
+      error
+    } =
+      await window.supabaseClient
+        .auth
         .signInWithPassword({
           email,
           password
@@ -707,7 +993,9 @@ loginForm.addEventListener(
 
 
     document
-      .getElementById("password")
+      .getElementById(
+        "password"
+      )
       .value = "";
 
 
@@ -736,7 +1024,8 @@ logoutBtn.addEventListener(
       .signOut();
 
 
-    sectionsContainer.innerHTML = "";
+    sectionsContainer.innerHTML =
+      "";
 
     showLogin();
 
