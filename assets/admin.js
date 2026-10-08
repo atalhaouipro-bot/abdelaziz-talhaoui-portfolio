@@ -1,86 +1,844 @@
-const sectionsContainer =
-  document.getElementById("sections");
+/* =========================================================
+   ADMIN CMS — ABDELAZIZ TALHAOUI
+   Supabase + interface structurée
+========================================================= */
 
-const loginSection =
-  document.getElementById("loginSection");
+const SECTION_LABELS = {
+  settings: "⚙️ Paramètres",
+  profile: "👤 Profil",
+  loop: "🔄 Approche professionnelle",
+  categories: "🏷️ Catégories",
+  expertises: "🎯 Expertises",
+  experiences: "💼 Expériences professionnelles",
+  projects: "🚀 Projets majeurs",
+  achievements: "🏆 Réalisations clés",
+  research: "🔬 Recherche & formation",
+  productions: "📚 Productions",
+  tools: "🛠️ Outils",
+  formalab: "🎥 FORMA LAB",
+  links: "🔗 Liens"
+};
 
-const adminSection =
-  document.getElementById("adminSection");
-
-const loginForm =
-  document.getElementById("loginForm");
-
-const loginStatus =
-  document.getElementById("loginStatus");
-
-const logoutBtn =
-  document.getElementById("logoutBtn");
+let currentData = {};
+let currentSection = null;
+let currentUser = null;
 
 
 /* =========================================================
-   CONFIGURATION
+   UTILITAIRES
 ========================================================= */
 
-const sectionLabels = {
-  settings: "Paramètres",
-  profile: "Profil",
-  loop: "Approche professionnelle",
-  categories: "Catégories",
-  expertises: "Expertises",
-  experiences: "Expériences professionnelles",
-  projects: "Projets / Réalisations",
-  achievements: "Réalisations / Achievements",
-  research: "Recherche",
-  productions: "Productions",
-  tools: "Outils",
-  formalab: "FORMA LAB",
-  links: "Liens & Contact"
-};
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function isObject(value) {
+  return value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value);
+}
+
+function isPrimitive(value) {
+  return (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    value === null
+  );
+}
+
+function labelize(key) {
+  return String(key)
+    .replace(/([A-Z])/g, " $1")
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .replace(/^./, c => c.toUpperCase());
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 
 /* =========================================================
-   MESSAGES
+   MESSAGE
 ========================================================= */
 
-const showLoginStatus = (
-  message,
-  type = "error"
-) => {
-  loginStatus.textContent = message;
-  loginStatus.className =
-    `status ${type}`;
-};
+function showStatus(message, type = "success") {
+
+  let box = document.getElementById("globalStatus");
+
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "globalStatus";
+
+    Object.assign(box.style, {
+      position: "fixed",
+      top: "20px",
+      right: "20px",
+      zIndex: "9999",
+      padding: "14px 20px",
+      borderRadius: "10px",
+      fontWeight: "600",
+      boxShadow: "0 10px 30px rgba(0,0,0,.12)",
+      maxWidth: "400px"
+    });
+
+    document.body.appendChild(box);
+  }
+
+  box.textContent = message;
+
+  box.style.background =
+    type === "error" ? "#fee2e2" : "#dcfce7";
+
+  box.style.color =
+    type === "error" ? "#991b1b" : "#166534";
+
+  clearTimeout(box._timer);
+
+  box._timer = setTimeout(() => {
+    box.remove();
+  }, 3500);
+}
 
 
 /* =========================================================
-   LOGIN / ADMIN
+   CHAMP PRIMITIF
 ========================================================= */
 
-const showAdmin = () => {
-  loginSection.classList.add("hidden");
-  adminSection.classList.remove("hidden");
-};
+function createPrimitiveField(value, path, options = {}) {
 
-const showLogin = () => {
-  adminSection.classList.add("hidden");
-  loginSection.classList.remove("hidden");
-};
+  const wrapper = document.createElement("div");
+  wrapper.className = "cms-field";
+
+  const label = document.createElement("label");
+  label.textContent = options.label || labelize(path.split(".").pop());
+
+  const isLong =
+    options.long ||
+    String(value ?? "").length > 180;
+
+  let input;
+
+  if (typeof value === "boolean") {
+
+    input = document.createElement("select");
+
+    const yes = document.createElement("option");
+    yes.value = "true";
+    yes.textContent = "Oui";
+
+    const no = document.createElement("option");
+    no.value = "false";
+    no.textContent = "Non";
+
+    input.append(yes, no);
+    input.value = String(value);
+
+  } else if (isLong) {
+
+    input = document.createElement("textarea");
+    input.rows = 5;
+    input.value = value ?? "";
+
+  } else {
+
+    input = document.createElement("input");
+    input.type = "text";
+    input.value = value ?? "";
+  }
+
+  input.dataset.path = path;
+
+  Object.assign(input.style, {
+    width: "100%",
+    padding: "11px 12px",
+    border: "1px solid #d1d5db",
+    borderRadius: "8px",
+    font: "inherit",
+    marginTop: "6px",
+    marginBottom: "15px",
+    boxSizing: "border-box"
+  });
+
+  input.addEventListener("input", () => {
+    setPathValue(
+      currentData,
+      path,
+      typeof value === "boolean"
+        ? input.value === "true"
+        : input.value
+    );
+  });
+
+  wrapper.append(label, input);
+
+  return wrapper;
+}
 
 
 /* =========================================================
-   VERIFICATION ADMIN
+   PATH
 ========================================================= */
 
-const checkAdmin = async () => {
+function parsePath(path) {
+  return path
+    .split(".")
+    .map(part =>
+      /^\d+$/.test(part)
+        ? Number(part)
+        : part
+    );
+}
+
+function setPathValue(obj, path, value) {
+
+  const parts = parsePath(path);
+
+  let target = obj;
+
+  for (let i = 0; i < parts.length - 1; i++) {
+    target = target[parts[i]];
+  }
+
+  target[parts[parts.length - 1]] = value;
+}
+
+
+/* =========================================================
+   TABLEAU DE STRINGS
+========================================================= */
+
+function renderStringArray(array, path, title) {
+
+  const container = document.createElement("div");
+  container.className = "cms-array";
+
+  const header = document.createElement("div");
+
+  Object.assign(header.style, {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "10px"
+  });
+
+  const h = document.createElement("strong");
+  h.textContent = title;
+
+  const add = document.createElement("button");
+
+  add.type = "button";
+  add.textContent = "+ Ajouter";
+
+  add.className = "secondary";
+
+  add.onclick = () => {
+
+    array.push("");
+
+    renderCurrentSection();
+  };
+
+  header.append(h, add);
+  container.appendChild(header);
+
+  array.forEach((item, index) => {
+
+    const row = document.createElement("div");
+
+    Object.assign(row.style, {
+      display: "flex",
+      gap: "8px",
+      marginBottom: "8px"
+    });
+
+    const input = document.createElement("textarea");
+
+    input.rows = 2;
+    input.value = item;
+
+    Object.assign(input.style, {
+      flex: "1",
+      padding: "10px",
+      border: "1px solid #d1d5db",
+      borderRadius: "8px",
+      font: "inherit"
+    });
+
+    input.oninput = () => {
+      array[index] = input.value;
+    };
+
+    const remove = document.createElement("button");
+
+    remove.type = "button";
+    remove.textContent = "×";
+    remove.className = "danger";
+
+    remove.onclick = () => {
+
+      array.splice(index, 1);
+
+      renderCurrentSection();
+    };
+
+    row.append(input, remove);
+    container.appendChild(row);
+  });
+
+  return container;
+}
+
+
+/* =========================================================
+   OBJET
+========================================================= */
+
+function renderObject(obj, path, title = "") {
+
+  const container = document.createElement("div");
+
+  container.className = "cms-object";
+
+  if (title) {
+
+    const heading = document.createElement("h3");
+
+    heading.textContent = title;
+
+    Object.assign(heading.style, {
+      marginTop: "0",
+      marginBottom: "18px"
+    });
+
+    container.appendChild(heading);
+  }
+
+  Object.keys(obj).forEach(key => {
+
+    const value = obj[key];
+    const childPath =
+      path ? `${path}.${key}` : key;
+
+    if (isPrimitive(value)) {
+
+      container.appendChild(
+        createPrimitiveField(
+          value,
+          childPath
+        )
+      );
+
+      return;
+    }
+
+    if (Array.isArray(value)) {
+
+      if (
+        value.every(item => isPrimitive(item))
+      ) {
+
+        container.appendChild(
+          renderStringArray(
+            value,
+            childPath,
+            labelize(key)
+          )
+        );
+
+      } else {
+
+        container.appendChild(
+          renderComplexArray(
+            value,
+            childPath,
+            labelize(key)
+          )
+        );
+      }
+
+      return;
+    }
+
+    if (isObject(value)) {
+
+      const group = document.createElement("div");
+
+      Object.assign(group.style, {
+        border: "1px solid #e5e7eb",
+        borderRadius: "10px",
+        padding: "18px",
+        marginBottom: "18px",
+        background: "#fafafa"
+      });
+
+      group.appendChild(
+        renderObject(
+          value,
+          childPath,
+          labelize(key)
+        )
+      );
+
+      container.appendChild(group);
+    }
+
+  });
+
+  return container;
+}
+
+
+/* =========================================================
+   TABLEAUX COMPLEXES
+========================================================= */
+
+function renderComplexArray(array, path, title) {
+
+  const container = document.createElement("div");
+
+  Object.assign(container.style, {
+    marginBottom: "25px"
+  });
+
+  const header = document.createElement("div");
+
+  Object.assign(header.style, {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "12px"
+  });
+
+  const titleElement = document.createElement("h3");
+
+  titleElement.textContent =
+    `${title} (${array.length})`;
+
+  titleElement.style.margin = "0";
+
+  const add = document.createElement("button");
+
+  add.type = "button";
+  add.className = "secondary";
+  add.textContent = "+ Ajouter";
+
+  add.onclick = () => {
+
+    let template = {};
+
+    if (array.length > 0) {
+
+      template = clone(array[0]);
+
+      clearObjectValues(template);
+    }
+
+    array.push(template);
+
+    renderCurrentSection();
+  };
+
+  header.append(titleElement, add);
+
+  container.appendChild(header);
+
+  array.forEach((item, index) => {
+
+    const card = document.createElement("div");
+
+    Object.assign(card.style, {
+      border: "1px solid #e5e7eb",
+      borderRadius: "12px",
+      padding: "20px",
+      marginBottom: "15px",
+      background: "#fff"
+    });
+
+    const cardHeader = document.createElement("div");
+
+    Object.assign(cardHeader.style, {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "15px"
+    });
+
+    const number = document.createElement("strong");
+
+    number.textContent =
+      `${title} — ${index + 1}`;
+
+    const remove = document.createElement("button");
+
+    remove.type = "button";
+    remove.className = "danger";
+    remove.textContent = "Supprimer";
+
+    remove.onclick = () => {
+
+      if (
+        !confirm(
+          "Supprimer définitivement cet élément ?"
+        )
+      ) return;
+
+      array.splice(index, 1);
+
+      renderCurrentSection();
+    };
+
+    cardHeader.append(number, remove);
+
+    card.appendChild(cardHeader);
+
+    if (isObject(item)) {
+
+      card.appendChild(
+        renderObject(
+          item,
+          `${path}.${index}`
+        )
+      );
+
+    } else {
+
+      card.appendChild(
+        createPrimitiveField(
+          item,
+          `${path}.${index}`
+        )
+      );
+    }
+
+    container.appendChild(card);
+  });
+
+  return container;
+}
+
+
+/* =========================================================
+   NETTOYAGE POUR NOUVEL ÉLÉMENT
+========================================================= */
+
+function clearObjectValues(obj) {
+
+  Object.keys(obj).forEach(key => {
+
+    if (Array.isArray(obj[key])) {
+
+      obj[key] = [];
+
+    } else if (isObject(obj[key])) {
+
+      clearObjectValues(obj[key]);
+
+    } else if (typeof obj[key] === "boolean") {
+
+      obj[key] = false;
+
+    } else {
+
+      obj[key] = "";
+    }
+  });
+
+  return obj;
+}
+
+
+/* =========================================================
+   RENDU SECTION
+========================================================= */
+
+function renderSection(section) {
+
+  const container =
+    document.getElementById("sectionEditor");
+
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const data =
+    currentData[section];
+
+  if (data === undefined) {
+
+    container.innerHTML =
+      "<p>Cette section est introuvable.</p>";
+
+    return;
+  }
+
+  const title = document.createElement("h2");
+
+  title.textContent =
+    SECTION_LABELS[section] || labelize(section);
+
+  container.appendChild(title);
+
+  const description =
+    document.createElement("p");
+
+  description.textContent =
+    "Modifie les informations puis clique sur « Enregistrer ».";
+
+  description.style.color = "#6b7280";
+
+  container.appendChild(description);
+
+  const editor =
+    document.createElement("div");
+
+  editor.style.marginTop = "25px";
+
+  if (Array.isArray(data)) {
+
+    editor.appendChild(
+      renderComplexArray(
+        data,
+        section,
+        SECTION_LABELS[section] || section
+      )
+    );
+
+  } else if (isObject(data)) {
+
+    editor.appendChild(
+      renderObject(
+        data,
+        section
+      )
+    );
+
+  } else {
+
+    editor.appendChild(
+      createPrimitiveField(
+        data,
+        section
+      )
+    );
+  }
+
+  container.appendChild(editor);
+
+  const actions = document.createElement("div");
+
+  Object.assign(actions.style, {
+    display: "flex",
+    gap: "10px",
+    marginTop: "25px",
+    paddingTop: "20px",
+    borderTop: "1px solid #e5e7eb"
+  });
+
+  const save = document.createElement("button");
+
+  save.type = "button";
+  save.className = "primary";
+  save.textContent = "💾 Enregistrer";
+
+  save.onclick = () =>
+    saveSection(section);
+
+  actions.appendChild(save);
+
+  container.appendChild(actions);
+}
+
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
+function renderNavigation() {
+
+  const nav =
+    document.getElementById("sectionNav");
+
+  if (!nav) return;
+
+  nav.innerHTML = "";
+
+  Object.keys(SECTION_LABELS)
+    .forEach(section => {
+
+      const button =
+        document.createElement("button");
+
+      button.type = "button";
+
+      button.textContent =
+        SECTION_LABELS[section];
+
+      Object.assign(button.style, {
+        width: "100%",
+        textAlign: "left",
+        padding: "12px 14px",
+        border: "0",
+        borderRadius: "8px",
+        background:
+          section === currentSection
+            ? "#111827"
+            : "transparent",
+        color:
+          section === currentSection
+            ? "#fff"
+            : "#374151",
+        cursor: "pointer",
+        marginBottom: "4px",
+        fontWeight:
+          section === currentSection
+            ? "600"
+            : "400"
+      });
+
+      button.onclick = () => {
+
+        currentSection = section;
+
+        renderNavigation();
+        renderSection(section);
+      };
+
+      nav.appendChild(button);
+    });
+}
+
+
+/* =========================================================
+   CHARGEMENT
+========================================================= */
+
+async function loadSections() {
+
+  showStatus("Chargement du contenu...");
 
   const {
-    data: { user }
-  } =
-    await window.supabaseClient.auth.getUser();
+    data,
+    error
+  } = await window.supabaseClient
+    .from("site_content")
+    .select("section, content");
 
-  if (!user) {
+  if (error) {
+
+    console.error(error);
+
+    showStatus(
+      "Impossible de charger le contenu.",
+      "error"
+    );
+
+    return;
+  }
+
+  currentData = {};
+
+  data.forEach(row => {
+
+    currentData[row.section] =
+      clone(row.content);
+  });
+
+  if (!currentSection) {
+
+    currentSection = "profile";
+  }
+
+  renderNavigation();
+  renderSection(currentSection);
+
+  showStatus("Contenu chargé.");
+}
+
+
+/* =========================================================
+   SAUVEGARDE
+========================================================= */
+
+async function saveSection(section) {
+
+  const button =
+    document.querySelector(
+      "#sectionEditor button.primary"
+    );
+
+  if (button) {
+
+    button.disabled = true;
+    button.textContent = "⏳ Enregistrement...";
+  }
+
+  try {
+
+    const {
+      error
+    } = await window.supabaseClient
+      .from("site_content")
+      .update({
+        content: currentData[section]
+      })
+      .eq("section", section);
+
+    if (error) {
+      throw error;
+    }
+
+    showStatus(
+      `✅ ${SECTION_LABELS[section] || section} enregistré.`
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+    showStatus(
+      "Erreur lors de l'enregistrement.",
+      "error"
+    );
+
+  } finally {
+
+    if (button) {
+
+      button.disabled = false;
+      button.textContent = "💾 Enregistrer";
+    }
+  }
+}
+
+
+/* =========================================================
+   AUTHENTIFICATION
+========================================================= */
+
+async function checkAdmin() {
+
+  const {
+    data: {
+      session
+    }
+  } =
+    await window.supabaseClient
+      .auth
+      .getSession();
+
+  if (!session) {
+
     showLogin();
-    return false;
+
+    return;
   }
 
   const {
@@ -90,7 +848,7 @@ const checkAdmin = async () => {
     await window.supabaseClient
       .from("admin_users")
       .select("user_id")
-      .eq("user_id", user.id)
+      .eq("user_id", session.user.id)
       .maybeSingle();
 
   if (error || !data) {
@@ -99,956 +857,321 @@ const checkAdmin = async () => {
       .auth
       .signOut();
 
-    showLoginStatus(
-      "Accès refusé : ce compte n'est pas administrateur."
+    showLogin();
+
+    showStatus(
+      "Accès administrateur refusé.",
+      "error"
     );
 
-    return false;
+    return;
   }
+
+  currentUser =
+    session.user;
 
   showAdmin();
 
-  return true;
-};
+  await loadSections();
+}
 
 
 /* =========================================================
-   UTILITAIRES
+   LOGIN
 ========================================================= */
 
-const deepClone = value => {
+function showLogin() {
 
-  if (
-    value === null ||
-    value === undefined
-  ) {
-    return value;
+  const login =
+    document.getElementById("loginSection");
+
+  const admin =
+    document.getElementById("adminSection");
+
+  if (login) {
+    login.classList.remove("hidden");
   }
 
-  return JSON.parse(
-    JSON.stringify(value)
-  );
-};
+  if (admin) {
+    admin.classList.add("hidden");
+  }
+}
 
 
-const isObject = value =>
-  value !== null &&
-  typeof value === "object" &&
-  !Array.isArray(value);
+function showAdmin() {
 
+  const login =
+    document.getElementById("loginSection");
 
-const isPrimitive = value =>
-  value === null ||
-  typeof value !== "object";
+  const admin =
+    document.getElementById("adminSection");
 
-
-const formatLabel = key => {
-
-  const labels = {
-
-    fr: "Français",
-
-    en: "English",
-
-    n: "Nom",
-
-    id: "Identifiant",
-
-    title: "Titre",
-
-    tagline: "Accroche",
-
-    sub: "Description courte",
-
-    about: "Présentation",
-
-    vision: "Vision",
-
-    method: "Méthode",
-
-    org: "Organisation",
-
-    role: "Poste",
-
-    dates: "Période",
-
-    context: "Contexte",
-
-    resp: "Responsabilités",
-
-    projects: "Projets",
-
-    achievements: "Réalisations",
-
-    impact: "Impact",
-
-    items: "Éléments",
-
-    proof: "Preuve / projet associé",
-
-    cat: "Catégories",
-
-    description: "Description",
-
-    link: "Lien",
-
-    url: "URL",
-
-    image: "Image",
-
-    name: "Nom",
-
-    category: "Catégorie",
-
-    type: "Type",
-
-    location: "Lieu",
-
-    email: "E-mail",
-
-    phone: "Téléphone",
-
-    linkedin: "LinkedIn",
-
-    youtube: "YouTube"
-
-  };
-
-  if (labels[key]) {
-    return labels[key];
+  if (login) {
+    login.classList.add("hidden");
   }
 
-  return key
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, char =>
-      char.toUpperCase()
-    );
-};
-
-
-/* =========================================================
-   CREATION D'UN CHAMP PRIMITIF
-========================================================= */
-
-const createPrimitiveField = ({
-  label,
-  value,
-  onChange,
-  multiline = false
-}) => {
-
-  const wrapper =
-    document.createElement("div");
-
-  wrapper.style.marginBottom = "16px";
-
-  const labelElement =
-    document.createElement("label");
-
-  labelElement.textContent =
-    label;
-
-  labelElement.style.display =
-    "block";
-
-  labelElement.style.marginBottom =
-    "7px";
-
-  labelElement.style.fontWeight =
-    "600";
-
-
-  let input;
-
-  if (multiline) {
-
-    input =
-      document.createElement("textarea");
-
-    input.style.minHeight =
-      "110px";
-
-  } else {
-
-    input =
-      document.createElement("input");
-
-    input.type = "text";
+  if (admin) {
+    admin.classList.remove("hidden");
   }
+}
 
 
-  input.value =
-    value === null ||
-    value === undefined
-      ? ""
-      : String(value);
-
-
-  input.addEventListener(
-    "input",
-    () => {
-
-      onChange(
-        input.value
-      );
-
-    }
-  );
-
-
-  wrapper.appendChild(
-    labelElement
-  );
-
-  wrapper.appendChild(
-    input
-  );
-
-  return wrapper;
-};
-
-
-/* =========================================================
-   EDITION D'UN OBJET
-========================================================= */
-
-const renderObject = (
-  object,
-  onChange,
-  level = 0
-) => {
-
-  const container =
-    document.createElement("div");
-
-  container.style.marginLeft =
-    level > 0 ? "12px" : "0";
-
-
-  Object.keys(object)
-    .forEach(key => {
-
-      const value =
-        object[key];
-
-
-      /* -----------------------------------------------
-         OBJET IMBRIQUE
-      ----------------------------------------------- */
-
-      if (isObject(value)) {
-
-        const group =
-          document.createElement("div");
-
-        group.style.border =
-          "1px solid #e5e7eb";
-
-        group.style.borderRadius =
-          "10px";
-
-        group.style.padding =
-          "18px";
-
-        group.style.marginBottom =
-          "18px";
-
-
-        const heading =
-          document.createElement("h3");
-
-        heading.textContent =
-          formatLabel(key);
-
-        heading.style.marginTop =
-          "0";
-
-        heading.style.marginBottom =
-          "15px";
-
-
-        group.appendChild(
-          heading
-        );
-
-
-        const child =
-          renderObject(
-            value,
-            newValue => {
-
-              object[key] =
-                newValue;
-
-              onChange(object);
-
-            },
-            level + 1
-          );
-
-
-        group.appendChild(child);
-
-        container.appendChild(group);
-
-        return;
-      }
-
-
-      /* -----------------------------------------------
-         TABLEAU
-      ----------------------------------------------- */
-
-      if (Array.isArray(value)) {
-
-        const group =
-          document.createElement("div");
-
-        group.style.border =
-          "1px solid #e5e7eb";
-
-        group.style.borderRadius =
-          "10px";
-
-        group.style.padding =
-          "18px";
-
-        group.style.marginBottom =
-          "18px";
-
-
-        const heading =
-          document.createElement("h3");
-
-        heading.textContent =
-          formatLabel(key);
-
-
-        group.appendChild(
-          heading
-        );
-
-
-        const list =
-          document.createElement("div");
-
-
-        value.forEach(
-          (item, index) => {
-
-            const itemWrapper =
-              document.createElement("div");
-
-            itemWrapper.style.border =
-              "1px solid #f0f0f0";
-
-            itemWrapper.style.borderRadius =
-              "8px";
-
-            itemWrapper.style.padding =
-              "14px";
-
-            itemWrapper.style.marginBottom =
-              "12px";
-
-
-            const itemTitle =
-              document.createElement("strong");
-
-            itemTitle.textContent =
-              `Élément ${index + 1}`;
-
-            itemWrapper.appendChild(
-              itemTitle
-            );
-
-
-            if (isObject(item)) {
-
-              itemWrapper.appendChild(
-                renderObject(
-                  item,
-                  newItem => {
-
-                    value[index] =
-                      newItem;
-
-                    onChange(object);
-
-                  },
-                  level + 1
-                )
-              );
-
-            } else {
-
-              const input =
-                document.createElement(
-                  "textarea"
-                );
-
-              input.value =
-                item === null
-                  ? ""
-                  : String(item);
-
-              input.style.minHeight =
-                "80px";
-
-
-              input.addEventListener(
-                "input",
-                () => {
-
-                  value[index] =
-                    input.value;
-
-                  onChange(object);
-
-                }
-              );
-
-
-              itemWrapper.appendChild(
-                input
-              );
-            }
-
-
-            const deleteButton =
-              document.createElement(
-                "button"
-              );
-
-            deleteButton.type =
-              "button";
-
-            deleteButton.className =
-              "danger";
-
-            deleteButton.textContent =
-              "Supprimer";
-
-
-            deleteButton.style.marginTop =
-              "10px";
-
-
-            deleteButton.addEventListener(
-              "click",
-              () => {
-
-                value.splice(
-                  index,
-                  1
-                );
-
-                renderCurrentSection();
-              }
-            );
-
-
-            itemWrapper.appendChild(
-              deleteButton
-            );
-
-
-            list.appendChild(
-              itemWrapper
-            );
-
-          }
-        );
-
-
-        group.appendChild(list);
-
-
-        const addButton =
-          document.createElement(
-            "button"
-          );
-
-        addButton.type =
-          "button";
-
-        addButton.className =
-          "secondary";
-
-        addButton.textContent =
-          "+ Ajouter";
-
-
-        addButton.addEventListener(
-          "click",
-          () => {
-
-            let newItem = "";
-
-
-            if (value.length > 0) {
-
-              newItem =
-                deepClone(
-                  value[0]
-                );
-
-            }
-
-
-            value.push(
-              newItem
-            );
-
-            renderCurrentSection();
-          }
-        );
-
-
-        group.appendChild(
-          addButton
-        );
-
-
-        container.appendChild(
-          group
-        );
-
-        return;
-      }
-
-
-      /* -----------------------------------------------
-         CHAMP TEXTE
-      ----------------------------------------------- */
-
-      const field =
-        createPrimitiveField({
-
-          label:
-            formatLabel(key),
-
-          value,
-
-          multiline:
-            typeof value === "string" &&
-            value.length > 120,
-
-          onChange:
-            newValue => {
-
-              object[key] =
-                newValue;
-
-              onChange(object);
-            }
-
-        });
-
-
-      container.appendChild(
-        field
-      );
-
-    });
-
-
-  return container;
-};
-
-
-/* =========================================================
-   VARIABLES DE SECTION
-========================================================= */
-
-let currentRows = [];
-
-let currentSectionRow = null;
-
-
-/* =========================================================
-   RENDRE UNE SECTION
-========================================================= */
-
-const renderSection = row => {
-
-  currentSectionRow =
-    row;
-
-
-  const card =
-    document.createElement(
-      "section"
-    );
-
-  card.className =
-    "card";
-
-
-  const title =
-    document.createElement(
-      "h2"
-    );
-
-  title.textContent =
-    sectionLabels[row.section] ||
-    formatLabel(row.section);
-
-
-  const info =
-    document.createElement(
-      "p"
-    );
-
-  info.className =
-    "muted";
-
-  info.textContent =
-    `Dernière modification : ${
-      new Date(
-        row.updated_at
-      ).toLocaleString("fr-FR")
-    }`;
-
-
-  card.appendChild(title);
-  card.appendChild(info);
-
-
-  const editor =
-    document.createElement(
-      "div"
-    );
-
-
-  const workingCopy =
-    deepClone(
-      row.content
-    );
-
-
-  const refreshEditor =
-    () => {
-
-      editor.innerHTML = "";
-
-      editor.appendChild(
-        renderObject(
-          workingCopy,
-          newValue => {
-
-            row.content =
-              newValue;
-
-          }
-        )
-      );
-    };
-
-
-  refreshEditor();
-
-
-  card.appendChild(
-    editor
-  );
-
-
-  const saveButton =
-    document.createElement(
-      "button"
-    );
-
-  saveButton.type =
-    "button";
-
-  saveButton.className =
-    "primary";
-
-  saveButton.textContent =
-    "Enregistrer les modifications";
-
-
-  const status =
-    document.createElement(
-      "div"
-    );
-
-  status.className =
-    "status";
-
-
-  saveButton.addEventListener(
-    "click",
-    async () => {
-
-      saveButton.disabled =
-        true;
-
-      saveButton.textContent =
-        "Enregistrement…";
-
-      status.className =
-        "status";
-
-      status.textContent =
-        "";
-
-
-      try {
-
-        const {
-          error
-        } =
-          await window.supabaseClient
-            .from("site_content")
-            .update({
-              content:
-                workingCopy
-            })
-            .eq(
-              "section",
-              row.section
-            );
-
-
-        if (error) {
-          throw error;
-        }
-
-
-        row.content =
-          deepClone(
-            workingCopy
-          );
-
-
-        status.className =
-          "status success";
-
-        status.textContent =
-          "✓ Modifications enregistrées avec succès.";
-
-
-      } catch (error) {
-
-        console.error(
-          error
-        );
-
-        status.className =
-          "status error";
-
-        status.textContent =
-          `Erreur : ${error.message}`;
-
-      } finally {
-
-        saveButton.disabled =
-          false;
-
-        saveButton.textContent =
-          "Enregistrer les modifications";
-      }
-
-    }
-  );
-
-
-  card.appendChild(
-    saveButton
-  );
-
-  card.appendChild(
-    status
-  );
-
-
-  return card;
-};
-
-
-/* =========================================================
-   VARIABLE DE RAFRAICHISSEMENT
-========================================================= */
-
-const renderCurrentSection = () => {
-
-  if (!currentSectionRow) {
-    return;
-  }
-
-  loadSections();
-};
-
-
-/* =========================================================
-   CHARGER TOUTES LES SECTIONS
-========================================================= */
-
-const loadSections = async () => {
-
-  sectionsContainer.innerHTML = `
-    <div class="card">
-      Chargement du contenu…
-    </div>
-  `;
-
+async function login(email, password) {
 
   const {
-    data,
     error
   } =
     await window.supabaseClient
-      .from("site_content")
-      .select(
-        "section, content, updated_at"
-      )
-      .order("id");
-
+      .auth
+      .signInWithPassword({
+        email,
+        password
+      });
 
   if (error) {
 
-    sectionsContainer.innerHTML = `
-      <div class="card">
-        <strong>Erreur :</strong>
-        ${error.message}
-      </div>
-    `;
+    showStatus(
+      error.message,
+      "error"
+    );
 
     return;
   }
 
-
-  currentRows =
-    data;
-
-
-  sectionsContainer.innerHTML =
-    "";
-
-
-  data.forEach(
-    row => {
-
-      sectionsContainer.appendChild(
-        renderSection(row)
-      );
-
-    }
-  );
-};
-
-
-/* =========================================================
-   CONNEXION
-========================================================= */
-
-loginForm.addEventListener(
-  "submit",
-  async event => {
-
-    event.preventDefault();
-
-
-    const email =
-      document
-        .getElementById("email")
-        .value
-        .trim();
-
-
-    const password =
-      document
-        .getElementById("password")
-        .value;
-
-
-    showLoginStatus(
-      "Connexion…",
-      "success"
-    );
-
-
-    const {
-      error
-    } =
-      await window.supabaseClient
-        .auth
-        .signInWithPassword({
-          email,
-          password
-        });
-
-
-    if (error) {
-
-      showLoginStatus(
-        "Connexion impossible : " +
-        error.message
-      );
-
-      return;
-    }
-
-
-    document
-      .getElementById(
-        "password"
-      )
-      .value = "";
-
-
-    const authorized =
-      await checkAdmin();
-
-
-    if (authorized) {
-      await loadSections();
-    }
-
-  }
-);
-
-
-/* =========================================================
-   DECONNEXION
-========================================================= */
-
-logoutBtn.addEventListener(
-  "click",
-  async () => {
-
-    await window.supabaseClient
-      .auth
-      .signOut();
-
-
-    sectionsContainer.innerHTML =
-      "";
-
-    showLogin();
-
-    showLoginStatus(
-      "Vous êtes déconnecté.",
-      "success"
-    );
-
-  }
-);
+  await checkAdmin();
+}
 
 
 /* =========================================================
    INITIALISATION
 ========================================================= */
 
-(async () => {
+document.addEventListener(
+  "DOMContentLoaded",
+  () => {
 
-  const authorized =
-    await checkAdmin();
+    const loginForm =
+      document.getElementById("loginForm");
 
-  if (authorized) {
-    await loadSections();
+    if (loginForm) {
+
+      loginForm.addEventListener(
+        "submit",
+        async event => {
+
+          event.preventDefault();
+
+          const email =
+            document.getElementById("email")
+              ?.value
+              .trim();
+
+          const password =
+            document.getElementById("password")
+              ?.value;
+
+          if (!email || !password) {
+
+            showStatus(
+              "Veuillez remplir les deux champs.",
+              "error"
+            );
+
+            return;
+          }
+
+          await login(
+            email,
+            password
+          );
+        }
+      );
+    }
+
+
+    const logout =
+      document.getElementById("logoutBtn");
+
+    if (logout) {
+
+      logout.addEventListener(
+        "click",
+        async () => {
+
+          await window.supabaseClient
+            .auth
+            .signOut();
+
+          currentUser = null;
+          currentData = {};
+          currentSection = null;
+
+          showLogin();
+
+          showStatus(
+            "Déconnexion effectuée."
+          );
+        }
+      );
+    }
+
+
+    /*
+     * Création automatique de la zone
+     * de navigation et de l'éditeur.
+     */
+    const adminSection =
+      document.getElementById("adminSection");
+
+    if (adminSection) {
+
+      const existing =
+        document.getElementById("cmsLayout");
+
+      if (!existing) {
+
+        const layout =
+          document.createElement("div");
+
+        layout.id = "cmsLayout";
+
+        Object.assign(layout.style, {
+          display: "grid",
+          gridTemplateColumns: "260px 1fr",
+          gap: "25px",
+          alignItems: "start"
+        });
+
+        const sidebar =
+          document.createElement("div");
+
+        Object.assign(sidebar.style, {
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: "14px",
+          padding: "15px",
+          position: "sticky",
+          top: "20px"
+        });
+
+        const sidebarTitle =
+          document.createElement("h3");
+
+        sidebarTitle.textContent =
+          "Sections";
+
+        sidebarTitle.style.margin =
+          "5px 8px 15px";
+
+        const nav =
+          document.createElement("div");
+
+        nav.id = "sectionNav";
+
+        sidebar.append(
+          sidebarTitle,
+          nav
+        );
+
+        const editorCard =
+          document.createElement("div");
+
+        Object.assign(editorCard.style, {
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: "14px",
+          padding: "25px"
+        });
+
+        const editor =
+          document.createElement("div");
+
+        editor.id =
+          "sectionEditor";
+
+        editorCard.appendChild(editor);
+
+        layout.append(
+          sidebar,
+          editorCard
+        );
+
+        adminSection.appendChild(layout);
+
+
+        /*
+         * Responsive
+         */
+        const style =
+          document.createElement("style");
+
+        style.textContent = `
+          @media (max-width: 800px) {
+            #cmsLayout {
+              grid-template-columns: 1fr !important;
+            }
+
+            #sectionNav {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 4px;
+            }
+
+            #cmsLayout > div:first-child {
+              position: static !important;
+            }
+          }
+
+          .cms-field label {
+            color: #374151;
+            font-size: 14px;
+          }
+
+          .cms-object > .cms-object {
+            margin-top: 10px;
+          }
+
+          .secondary {
+            background: #e5e7eb;
+            color: #111827;
+            border: 0;
+            border-radius: 8px;
+            padding: 9px 13px;
+            font-weight: 600;
+            cursor: pointer;
+          }
+
+          .primary {
+            background: #111827;
+            color: white;
+            border: 0;
+            border-radius: 8px;
+            padding: 11px 18px;
+            font-weight: 600;
+            cursor: pointer;
+          }
+
+          .danger {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 0;
+            border-radius: 8px;
+            padding: 9px 13px;
+            font-weight: 600;
+            cursor: pointer;
+          }
+
+          button:disabled {
+            opacity: .6;
+            cursor: wait;
+          }
+        `;
+
+        document.head.appendChild(style);
+      }
+    }
+
+
+    checkAdmin();
   }
-
-})();
+);
