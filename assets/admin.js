@@ -1,285 +1,402 @@
+/* =========================================================
+   ADMIN CMS — ABDELAZIZ TALHAOUI
+   Version sécurisée — Supabase + interface structurée
+   Protection des modifications non enregistrées
+   Sauvegarde contrôlée — Données existantes préservées
+========================================================= */
+
+const SECTION_LABELS = {
+  settings: "⚙️ Paramètres",
+  profile: "👤 Profil",
+  loop: "🔄 Approche professionnelle",
+  categories: "🏷️ Catégories",
+  expertises: "🎯 Expertises",
+  experiences: "💼 Expériences professionnelles",
+  projects: "🚀 Projets majeurs",
+  achievements: "🏆 Réalisations clés",
+  research: "🔬 Recherche & formation",
+  productions: "📚 Productions",
+  tools: "🛠️ Outils",
+  formalab: "🎥 FORMA LAB",
+  links: "🔗 Liens"
+};
+
+const FIELD_LABELS = {
+  name: "Nom",
+  title: "Titre",
+  tagline: "Accroche",
+  sub: "Présentation courte",
+  about: "Présentation / À propos",
+  vision: "Vision",
+  method: "Méthode",
+  role: "Rôle",
+  dates: "Période",
+  context: "Contexte",
+  resp: "Responsabilités",
+  projects: "Projets",
+  achievements: "Réalisations",
+  impact: "Impact",
+  description: "Description",
+  education: "Formation",
+  status: "Statut",
+  thesis: "Mémoire / Thèse",
+  question: "Question de recherche",
+  certifications: "Certifications",
+  publications: "Publications",
+  talks: "Interventions",
+  modules: "Modules",
+  participantPack: "Pack participant",
+  trainerPack: "Pack formateur",
+  evaluation: "Évaluation",
+  frameworks: "Référentiels",
+  production: "Production",
+  digital: "Outils numériques",
+  ai: "Intelligence artificielle",
+  analysis: "Analyse",
+  collaboration: "Collaboration",
+  sig: "Signature",
+  desc: "Description",
+  youtube: "Chaîne YouTube",
+  items: "Contenus",
+  linkedin: "LinkedIn",
+  email: "E-mail",
+  formAction: "Action du formulaire",
+  cv: "CV",
+  draft: "Brouillon",
+  lang: "Langue"
+};
 
 /* =========================================================
-   FORMA LAB / ABDELAZIZ TALHAOUI — ADMIN CMS
-   File: assets/admin.js
-   Backend: Supabase
-   ========================================================= */
+   ÉTAT DU CMS
+========================================================= */
 
-(() => {
-  "use strict";
+let currentData = {};
+let currentSection = null;
+let currentUser = null;
 
-  /* ---------------------------------------------------------
-     1. CONFIGURATION
-     --------------------------------------------------------- */
+// Copie de référence du contenu chargé ou enregistré.
+const savedSnapshots = new Map();
 
-  const SECTION_LABELS = {
-    settings: "Paramètres généraux",
-    profile: "Profil",
-    loop: "Présentation",
-    categories: "Catégories",
-    expertises: "Expertises",
-    experiences: "Expériences",
-    projects: "Projets",
-    achievements: "Réalisations",
-    research: "Recherche",
-    productions: "Productions",
-    tools: "Outils",
-    formalab: "FORMA LAB",
-    links: "Liens"
-  };
+// Empêche plusieurs sauvegardes simultanées de la même section.
+const savingSections = new Set();
 
-  const FIELD_LABELS = {
-    title: "Titre",
-    subtitle: "Sous-titre",
-    description: "Description",
-    name: "Nom",
-    role: "Fonction",
-    headline: "Accroche professionnelle",
-    email: "E-mail",
-    phone: "Téléphone",
-    location: "Localisation",
-    website: "Site web",
-    linkedin: "LinkedIn",
-    youtube: "YouTube",
-    github: "GitHub",
-    image: "Image",
-    photo: "Photo",
-    logo: "Logo",
-    url: "URL",
-    link: "Lien",
-    date: "Date",
-    year: "Année",
-    company: "Organisation",
-    organization: "Organisation",
-    position: "Poste",
-    institution: "Établissement",
-    degree: "Diplôme",
-    category: "Catégorie",
-    type: "Type",
-    status: "Statut",
-    order: "Ordre",
-    visible: "Visible",
-    featured: "Mis en avant",
-    skills: "Compétences",
-    tags: "Mots-clés",
-    content: "Contenu",
-    text: "Texte",
-    label: "Libellé",
-    button: "Bouton",
-    cta: "Appel à l’action",
-    cv: "CV",
-    cvUrl: "URL du CV",
-    cv_url: "URL du CV",
-    tagline: "Signature",
-    slogan: "Slogan",
-    specialty: "Spécialité",
-    objective: "Objectif",
-    mission: "Mission",
-    results: "Résultats",
-    tools: "Outils",
-    languages: "Langues",
-    fr: "Français",
-    en: "Anglais",
-    ar: "Arabe",
-    startDate: "Date de début",
-    endDate: "Date de fin",
-    current: "Poste actuel"
-  };
+// Évite les doubles initialisations.
+let adminInitialized = false;
 
-  const supabase = window.supabaseClient;
+/* =========================================================
+   PROTECTION DES MODIFICATIONS NON ENREGISTRÉES
+========================================================= */
 
-  let currentData = {};
-  let currentSection = null;
-  let currentUser = null;
-  let savedSnapshots = {};
-  let savingSections = new Set();
-  let adminInitialized = false;
-  let isLoading = false;
+function snapshot(value) {
+  return JSON.stringify(value);
+}
 
-  /* ---------------------------------------------------------
-     2. GENERAL HELPERS
-     --------------------------------------------------------- */
-
-  function clone(value) {
-    if (value === undefined) return undefined;
-
-    try {
-      return structuredClone(value);
-    } catch {
-      return JSON.parse(JSON.stringify(value));
-    }
+function isDirty(section = currentSection) {
+  if (!section || !(section in currentData)) {
+    return false;
   }
 
-  function isObject(value) {
-    return value !== null &&
-      typeof value === "object" &&
-      !Array.isArray(value);
+  return (
+    savedSnapshots.get(section) !==
+    snapshot(currentData[section])
+  );
+}
+
+function hasUnsavedChanges() {
+  return Object.keys(currentData).some(section =>
+    isDirty(section)
+  );
+}
+
+function confirmDiscard(section = currentSection) {
+  if (!isDirty(section)) {
+    return true;
   }
 
-  function isPrimitive(value) {
-    return value === null ||
-      ["string", "number", "boolean"].includes(typeof value);
+  return window.confirm(
+    "Cette section contient des modifications non enregistrées.\n\n" +
+    "Veux-tu vraiment continuer sans les enregistrer ?"
+  );
+}
+
+function confirmLeaveAdmin() {
+  if (!hasUnsavedChanges()) {
+    return true;
   }
 
-  function labelize(key) {
-    if (FIELD_LABELS[key]) return FIELD_LABELS[key];
+  return window.confirm(
+    "Certaines sections contiennent des modifications non enregistrées.\n\n" +
+    "Si tu te déconnectes, ces modifications en mémoire seront perdues.\n\n" +
+    "Veux-tu vraiment te déconnecter ?"
+  );
+}
 
-    return String(key)
-      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-      .replace(/[_-]+/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .replace(/^./, character => character.toUpperCase());
+// Avertissement du navigateur avant de quitter ou d'actualiser.
+window.addEventListener("beforeunload", event => {
+  if (hasUnsavedChanges()) {
+    event.preventDefault();
+    event.returnValue = "";
+  }
+});
+
+/* =========================================================
+   UTILITAIRES
+========================================================= */
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function isObject(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+  );
+}
+
+function isPrimitive(value) {
+  return (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    value === null
+  );
+}
+
+function labelize(key) {
+  if (FIELD_LABELS[key]) {
+    return FIELD_LABELS[key];
   }
 
-  function languageLabel(language) {
-    const labels = {
-      fr: "Français",
-      en: "Anglais",
-      ar: "Arabe"
-    };
+  return String(key)
+    .replace(/([A-Z])/g, " $1")
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .replace(/^./, character => character.toUpperCase());
+}
 
-    return labels[language] || language;
+function languageLabel(key) {
+  if (key === "fr") return "🇫🇷 Français";
+  if (key === "en") return "🇬🇧 English";
+
+  return null;
+}
+
+function showStatus(message, type = "success") {
+  let box = document.getElementById("globalStatus");
+
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "globalStatus";
+
+    Object.assign(box.style, {
+      position: "fixed",
+      top: "20px",
+      right: "20px",
+      zIndex: "9999",
+      padding: "14px 20px",
+      borderRadius: "10px",
+      fontWeight: "600",
+      boxShadow: "0 10px 30px rgba(0,0,0,.12)",
+      maxWidth: "400px",
+      fontSize: "14px"
+    });
+
+    document.body.appendChild(box);
   }
 
-  function escapeHtml(value) {
-    return String(value ?? "").replace(/[&<>"']/g, character => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    })[character]);
-  }
+  box.textContent = message;
 
-  function showStatus(message, type = "info", container) {
-    const target = container ||
-      document.getElementById("editorStatus") ||
-      document.getElementById("loginStatus");
+  box.style.background =
+    type === "error" ? "#fee2e2" : "#dcfce7";
 
-    if (!target) {
-      console.log(`[Admin ${type}] ${message}`);
-      return;
-    }
+  box.style.color =
+    type === "error" ? "#991b1b" : "#166534";
 
-    target.textContent = message;
-    target.dataset.type = type;
-    target.className = `admin-status admin-status-${type}`;
-    target.hidden = false;
-  }
+  clearTimeout(box._timer);
 
-  function clearStatus(container) {
-    if (!container) return;
+  box._timer = setTimeout(() => {
+    box.remove();
+  }, 4500);
+}
 
-    container.textContent = "";
-    container.hidden = true;
-  }
+/* =========================================================
+   GESTION DES CHEMINS
+========================================================= */
 
-  function snapshot(section) {
-    return JSON.stringify(currentData[section]);
-  }
+function parsePath(path) {
+  return path.split(".").map(part =>
+    /^\d+$/.test(part) ? Number(part) : part
+  );
+}
 
-  function isDirty(section) {
-    if (!Object.prototype.hasOwnProperty.call(currentData, section)) {
-      return false;
+function setPathValue(obj, path, value) {
+  const parts = parsePath(path);
+  let target = obj;
+
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (target == null) {
+      throw new Error("Chemin de données invalide : " + path);
     }
 
-    return snapshot(section) !== savedSnapshots[section];
+    target = target[parts[i]];
   }
 
-  function hasUnsavedChanges() {
-    return Object.keys(currentData).some(isDirty);
+  if (target == null) {
+    throw new Error("Champ introuvable : " + path);
   }
 
-  function confirmDiscard(section) {
-    if (!isDirty(section)) return true;
+  target[parts[parts.length - 1]] = value;
+}
 
-    return window.confirm(
-      `La section « ${SECTION_LABELS[section] || section} » contient ` +
-      "des modifications non enregistrées.\n\n" +
-      "Veux-tu vraiment quitter cette section sans les enregistrer ?"
-    );
-  }
+/* =========================================================
+   CHAMP PRIMITIF
+========================================================= */
 
-  function confirmLeaveAdmin() {
-    if (!hasUnsavedChanges()) return true;
 
-    return window.confirm(
-      "Certaines modifications ne sont pas enregistrées.\n\n" +
-      "Veux-tu vraiment quitter l’administration ?"
-    );
-  }
+function createPrimitiveField(value, path, options = {}) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "cms-field";
 
-  window.addEventListener("beforeunload", event => {
-    if (hasUnsavedChanges()) {
-      event.preventDefault();
-      event.returnValue = "";
-    }
+  const key = path.split(".").pop();
+  const normalizedKey = key.toLowerCase();
+
+  const label = document.createElement("label");
+  label.textContent = options.label || labelize(key);
+  Object.assign(label.style, {
+    display: "block",
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: "7px"
   });
 
-  /* ---------------------------------------------------------
-     3. PATH HELPERS
-     --------------------------------------------------------- */
+  const isImageField =
+    /(image|photo|avatar|thumbnail|logo|picture|portrait)/i
+      .test(normalizedKey);
 
-  function parsePath(path) {
-    return String(path)
-      .split(".")
-      .filter(Boolean)
-      .map(part => /^\d+$/.test(part) ? Number(part) : part);
+  const isUrlField =
+    /(url|link|linkedin|youtube|website|site|href|src|cv)/i
+      .test(normalizedKey) ||
+    (typeof value === "string" &&
+      /^https?:\/\//i.test(value.trim()));
+
+  const isEmailField =
+    normalizedKey === "email" ||
+    normalizedKey.includes("email");
+
+  const isLong =
+    options.long ||
+    String(value ?? "").length > 180;
+
+  let input;
+
+  if (typeof value === "boolean") {
+    input = document.createElement("select");
+
+    [
+      { value: "true", text: "Oui" },
+      { value: "false", text: "Non" }
+    ].forEach(item => {
+      const option = document.createElement("option");
+      option.value = item.value;
+      option.textContent = item.text;
+      input.appendChild(option);
+    });
+
+    input.value = String(value);
+
+  } else if (typeof value === "number") {
+    input = document.createElement("input");
+    input.type = "number";
+    input.step = "any";
+    input.value = String(value);
+
+  } else if (isEmailField) {
+    input = document.createElement("input");
+    input.type = "email";
+    input.value = value ?? "";
+
+  } else if (isUrlField) {
+    input = document.createElement("input");
+    input.type = "url";
+    input.value = value ?? "";
+    input.placeholder = "https://...";
+
+  } else if (isLong) {
+    input = document.createElement("textarea");
+    input.rows = 5;
+    input.value = value ?? "";
+
+  } else {
+    input = document.createElement("input");
+    input.type = "text";
+    input.value = value ?? "";
   }
 
-  function setPathValue(object, path, value) {
-    const parts = parsePath(path);
+  input.dataset.path = path;
 
-    if (!parts.length) return;
+  Object.assign(input.style, {
+    display: "block",
+    width: "100%",
+    padding: "11px 12px",
+    border: "1px solid #d1d5db",
+    borderRadius: "8px",
+    font: "inherit",
+    marginTop: "7px",
+    marginBottom: "10px",
+    boxSizing: "border-box",
+    background: "#fff"
+  });
 
-    let target = object;
+  let preview = null;
+  let openLink = null;
 
-    for (let index = 0; index < parts.length - 1; index++) {
-      const key = parts[index];
+  if (isImageField) {
+    preview = document.createElement("img");
+    preview.alt = "Aperçu de " + label.textContent;
+    preview.loading = "lazy";
 
-      if (
-        target[key] === null ||
-        target[key] === undefined ||
-        typeof target[key] !== "object"
-      ) {
-        target[key] = typeof parts[index + 1] === "number" ? [] : {};
-      }
+    Object.assign(preview.style, {
+      display: "none",
+      maxWidth: "220px",
+      maxHeight: "160px",
+      objectFit: "contain",
+      border: "1px solid #e5e7eb",
+      borderRadius: "8px",
+      padding: "5px",
+      marginBottom: "12px",
+      background: "#fff"
+    });
 
-      target = target[key];
-    }
-
-    target[parts[parts.length - 1]] = value;
+    preview.onerror = () => {
+      preview.style.display = "none";
+    };
   }
 
-  function getPathValue(object, path) {
-    return parsePath(path).reduce((target, key) => {
-      if (target === null || target === undefined) return undefined;
-      return target[key];
-    }, object);
+  if (isUrlField && !isImageField) {
+    openLink = document.createElement("a");
+    openLink.textContent = "↗ Ouvrir le lien";
+    openLink.target = "_blank";
+    openLink.rel = "noopener noreferrer";
+
+    Object.assign(openLink.style, {
+      display: "inline-block",
+      marginBottom: "12px",
+      color: "#2563eb",
+      fontWeight: "600",
+      textDecoration: "none"
+    });
   }
 
-  function createPath(base, key) {
-    return base ? `${base}.${key}` : String(key);
-  }
-
-  /* ---------------------------------------------------------
-     4. SAFE URL HELPERS
-     --------------------------------------------------------- */
-
-  function safeHttpUrl(value, allowRelative = false) {
-    if (typeof value !== "string" || !value.trim()) return null;
-
-    const raw = value.trim();
-
-    if (allowRelative && raw.startsWith("/") && !raw.startsWith("//")) {
-      return raw;
-    }
-
+  function validHttpUrl(rawValue) {
     try {
-      const url = new URL(raw);
+      const url = new URL(
+        String(rawValue || "").trim(),
+        window.location.href
+      );
 
-      if (url.protocol !== "http:" && url.protocol !== "https:") {
+      if (!["http:", "https:"].includes(url.protocol)) {
         return null;
       }
 
@@ -289,1110 +406,1098 @@
     }
   }
 
-  function isLikelyImageField(key) {
-    return /image|photo|avatar|logo|picture|thumbnail|portrait/i.test(key);
+  function updatePreview() {
+    const rawValue = input.value.trim();
+    const safeUrl = validHttpUrl(rawValue);
+
+    if (preview) {
+      if (safeUrl) {
+        preview.src = safeUrl;
+        preview.style.display = "block";
+      } else {
+        preview.removeAttribute("src");
+        preview.style.display = "none";
+      }
+    }
+
+    if (openLink) {
+      if (safeUrl) {
+        openLink.href = safeUrl;
+        openLink.style.display = "inline-block";
+      } else {
+        openLink.removeAttribute("href");
+        openLink.style.display = "none";
+      }
+    }
   }
 
-  function isLikelyUrlField(key) {
-    return /url|link|website|linkedin|youtube|github|cv/i.test(key);
-  }
-
-  /* ---------------------------------------------------------
-     5. DYNAMIC FIELD CREATION
-     --------------------------------------------------------- */
-
-  function createElement(tag, className, text) {
-    const element = document.createElement(tag);
-
-    if (className) element.className = className;
-    if (text !== undefined) element.textContent = text;
-
-    return element;
-  }
-
-  function createPrimitiveField(key, value, path, onChange) {
-    const wrapper = createElement("div", "admin-field");
-    const label = createElement("label", "admin-field-label", labelize(key));
-
-    label.htmlFor = `field-${path.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
-
-    let input;
+  function updateValue() {
+    let nextValue = input.value;
 
     if (typeof value === "boolean") {
-      input = document.createElement("input");
-      input.type = "checkbox";
-      input.checked = value;
-      input.className = "admin-checkbox";
+      nextValue = input.value === "true";
+
     } else if (typeof value === "number") {
-      input = document.createElement("input");
-      input.type = "number";
-      input.value = String(value);
-      input.step = "any";
-      input.className = "admin-input";
-    } else if (
-      typeof value === "string" &&
-      (value.length > 150 || value.includes("\n"))
-    ) {
-      input = document.createElement("textarea");
-      input.value = value;
-      input.rows = Math.min(10, Math.max(3, value.split("\n").length));
-      input.className = "admin-textarea";
-    } else {
-      input = document.createElement("input");
-      input.type = "text";
-      input.value = value === null || value === undefined ? "" : String(value);
-      input.className = "admin-input";
-    }
-
-    input.id = label.htmlFor;
-    input.name = path;
-    input.autocomplete = "off";
-
-    let imagePreview = null;
-    let urlLink = null;
-
-    if (typeof value === "string" && isLikelyImageField(key)) {
-      imagePreview = createElement("img", "admin-image-preview");
-      imagePreview.alt = `Aperçu : ${labelize(key)}`;
-      imagePreview.hidden = true;
-      imagePreview.loading = "lazy";
-      wrapper.appendChild(imagePreview);
-    }
-
-    if (typeof value === "string" && isLikelyUrlField(key)) {
-      urlLink = createElement("a", "admin-url-preview", "Ouvrir le lien");
-      urlLink.target = "_blank";
-      urlLink.rel = "noopener noreferrer";
-      urlLink.hidden = true;
-      wrapper.appendChild(urlLink);
-    }
-
-    function updatePreview(rawValue) {
-      if (imagePreview) {
-        const imageUrl = safeHttpUrl(rawValue, true);
-
-        if (imageUrl) {
-          imagePreview.src = imageUrl;
-          imagePreview.hidden = false;
-        } else {
-          imagePreview.removeAttribute("src");
-          imagePreview.hidden = true;
-        }
-
-        imagePreview.onerror = () => {
-          imagePreview.hidden = true;
-        };
-      }
-
-      if (urlLink) {
-        const url = safeHttpUrl(rawValue, false);
-
-        if (url) {
-          urlLink.href = url;
-          urlLink.hidden = false;
-        } else {
-          urlLink.removeAttribute("href");
-          urlLink.hidden = true;
-        }
-      }
-    }
-
-    updatePreview(typeof value === "string" ? value : "");
-
-    input.addEventListener("input", () => {
-      let nextValue;
-
-      if (input.type === "checkbox") {
-        nextValue = input.checked;
-      } else if (typeof value === "number") {
-        if (input.value.trim() === "") {
-          updatePreview("");
-          return;
-        }
-
-        nextValue = Number(input.value);
-
-        if (!Number.isFinite(nextValue)) return;
-      } else if (value === null) {
-        nextValue = input.value === "" ? null : input.value;
-      } else {
-        nextValue = input.value;
-      }
-
-      updatePreview(typeof nextValue === "string" ? nextValue : "");
-      onChange(nextValue);
-    });
-
-    wrapper.appendChild(label);
-    wrapper.appendChild(input);
-
-    return wrapper;
-  }
-
-  /* ---------------------------------------------------------
-     6. LANGUAGE OBJECTS
-     --------------------------------------------------------- */
-
-  function renderLanguageObject(key, value, path, onChange) {
-    const container = createElement("div", "admin-language-object");
-    const heading = createElement("h4", "admin-subheading", labelize(key));
-
-    container.appendChild(heading);
-
-    const languages = ["fr", "en", "ar"];
-    const keys = new Set([
-      ...languages.filter(language =>
-        Object.prototype.hasOwnProperty.call(value, language)
-      ),
-      ...Object.keys(value)
-    ]);
-
-    keys.forEach(language => {
-      const fieldValue = value[language];
-      const fieldPath = createPath(path, language);
-
-      if (isPrimitive(fieldValue)) {
-        const field = createPrimitiveField(
-          languageLabel(language),
-          fieldValue,
-          fieldPath,
-          nextValue => onChange(fieldPath, nextValue)
+      if (input.value.trim() === "") {
+        showStatus(
+          "Ce champ doit contenir un nombre.",
+          "error"
         );
-
-        container.appendChild(field);
-      } else if (isObject(fieldValue)) {
-        const nested = renderObject(
-          languageLabel(language),
-          fieldValue,
-          fieldPath,
-          onChange
-        );
-
-        container.appendChild(nested);
-      }
-    });
-
-    return container;
-  }
-
-  /* ---------------------------------------------------------
-     7. STRING ARRAYS
-     --------------------------------------------------------- */
-
-  function renderStringArray(key, values, path, onChange) {
-    const container = createElement("div", "admin-array");
-    const heading = createElement("h4", "admin-subheading", labelize(key));
-
-    container.appendChild(heading);
-
-    const itemsContainer = createElement("div", "admin-array-items");
-    container.appendChild(itemsContainer);
-
-    function renderItems() {
-      itemsContainer.replaceChildren();
-
-      values.forEach((item, index) => {
-        const row = createElement("div", "admin-array-row");
-        const input = document.createElement("input");
-
-        input.type = "text";
-        input.className = "admin-input";
-        input.value = item ?? "";
-        input.setAttribute("aria-label", `${labelize(key)} ${index + 1}`);
-
-        input.addEventListener("input", () => {
-          values[index] = input.value;
-          onChange(path, clone(values));
-        });
-
-        const removeButton = createElement("button", "admin-button admin-button-danger", "Supprimer");
-        removeButton.type = "button";
-
-        removeButton.addEventListener("click", () => {
-          if (!window.confirm("Supprimer cet élément ?")) return;
-
-          values.splice(index, 1);
-          onChange(path, clone(values));
-          renderItems();
-        });
-
-        row.append(input, removeButton);
-        itemsContainer.appendChild(row);
-      });
-    }
-
-    const addButton = createElement("button", "admin-button admin-button-secondary", "+ Ajouter un élément");
-    addButton.type = "button";
-
-    addButton.addEventListener("click", () => {
-      values.push("");
-      onChange(path, clone(values));
-      renderItems();
-    });
-
-    renderItems();
-    container.appendChild(addButton);
-
-    return container;
-  }
-
-  /* ---------------------------------------------------------
-     8. OBJECTS
-     --------------------------------------------------------- */
-
-  function renderObject(key, value, path, onChange) {
-    const container = createElement("fieldset", "admin-object");
-    const legend = createElement("legend", "admin-object-title", labelize(key));
-
-    container.appendChild(legend);
-
-    Object.keys(value).forEach(childKey => {
-      const childValue = value[childKey];
-      const childPath = createPath(path, childKey);
-
-      if (isPrimitive(childValue)) {
-        container.appendChild(
-          createPrimitiveField(
-            childKey,
-            childValue,
-            childPath,
-            nextValue => onChange(childPath, nextValue)
-          )
-        );
-      } else if (Array.isArray(childValue)) {
-        const child = childValue.every(item => isPrimitive(item))
-          ? renderStringArray(childKey, childValue, childPath, onChange)
-          : renderComplexArray(childKey, childValue, childPath, onChange);
-
-        container.appendChild(child);
-      } else if (isObject(childValue)) {
-        if (
-          ["fr", "en", "ar"].some(language =>
-            Object.prototype.hasOwnProperty.call(childValue, language)
-          )
-        ) {
-          container.appendChild(
-            renderLanguageObject(childKey, childValue, childPath, onChange)
-          );
-        } else {
-          container.appendChild(
-            renderObject(childKey, childValue, childPath, onChange)
-          );
-        }
-      } else {
-        container.appendChild(
-          createPrimitiveField(
-            childKey,
-            "",
-            childPath,
-            nextValue => onChange(childPath, nextValue)
-          )
-        );
-      }
-    });
-
-    return container;
-  }
-
-  /* ---------------------------------------------------------
-     9. COMPLEX ARRAYS
-     --------------------------------------------------------- */
-
-  function renderComplexArray(key, values, path, onChange) {
-    const container = createElement("div", "admin-complex-array");
-    const heading = createElement("h4", "admin-subheading", labelize(key));
-
-    container.appendChild(heading);
-
-    const itemsContainer = createElement("div", "admin-complex-array-items");
-    container.appendChild(itemsContainer);
-
-    function renderItems() {
-      itemsContainer.replaceChildren();
-
-      values.forEach((item, index) => {
-        const itemWrapper = createElement("div", "admin-array-item");
-        const itemHeader = createElement("div", "admin-array-item-header");
-
-        const itemTitle = createElement(
-          "strong",
-          "admin-array-item-title",
-          `${labelize(key)} ${index + 1}`
-        );
-
-        const controls = createElement("div", "admin-array-item-controls");
-
-        const upButton = createElement("button", "admin-button admin-button-small", "↑");
-        upButton.type = "button";
-        upButton.disabled = index === 0;
-        upButton.title = "Déplacer vers le haut";
-
-        upButton.addEventListener("click", () => {
-          if (index === 0) return;
-
-          [values[index - 1], values[index]] =
-            [values[index], values[index - 1]];
-
-          onChange(path, clone(values));
-          renderItems();
-        });
-
-        const downButton = createElement("button", "admin-button admin-button-small", "↓");
-        downButton.type = "button";
-        downButton.disabled = index === values.length - 1;
-        downButton.title = "Déplacer vers le bas";
-
-        downButton.addEventListener("click", () => {
-          if (index >= values.length - 1) return;
-
-          [values[index], values[index + 1]] =
-            [values[index + 1], values[index]];
-
-          onChange(path, clone(values));
-          renderItems();
-        });
-
-        const removeButton = createElement("button", "admin-button admin-button-danger", "Supprimer");
-        removeButton.type = "button";
-
-        removeButton.addEventListener("click", () => {
-          if (!window.confirm("Supprimer cet élément ?")) return;
-
-          values.splice(index, 1);
-          onChange(path, clone(values));
-          renderItems();
-        });
-
-        controls.append(upButton, downButton, removeButton);
-        itemHeader.append(itemTitle, controls);
-        itemWrapper.appendChild(itemHeader);
-
-        if (isObject(item)) {
-          itemWrapper.appendChild(
-            renderObject(
-              `${labelize(key)} ${index + 1}`,
-              item,
-              createPath(path, index),
-              onChange
-            )
-          );
-        } else if (Array.isArray(item)) {
-          itemWrapper.appendChild(
-            renderComplexArray(
-              `${labelize(key)} ${index + 1}`,
-              item,
-              createPath(path, index),
-              onChange
-            )
-          );
-        } else {
-          itemWrapper.appendChild(
-            createPrimitiveField(
-              "Valeur",
-              item,
-              createPath(path, index),
-              nextValue => onChange(createPath(path, index), nextValue)
-            )
-          );
-        }
-
-        itemsContainer.appendChild(itemWrapper);
-      });
-    }
-
-    const addButton = createElement("button", "admin-button admin-button-secondary", "+ Ajouter");
-    addButton.type = "button";
-
-    addButton.addEventListener("click", () => {
-      const firstItem = values.find(item => isObject(item));
-
-      if (firstItem) {
-        const newItem = {};
-
-        Object.keys(firstItem).forEach(itemKey => {
-          const originalValue = firstItem[itemKey];
-
-          if (typeof originalValue === "string") {
-            newItem[itemKey] = "";
-          } else if (typeof originalValue === "number") {
-            newItem[itemKey] = 0;
-          } else if (typeof originalValue === "boolean") {
-            newItem[itemKey] = false;
-          } else if (Array.isArray(originalValue)) {
-            newItem[itemKey] = [];
-          } else if (isObject(originalValue)) {
-            newItem[itemKey] = clone(originalValue);
-          } else {
-            newItem[itemKey] = null;
-          }
-        });
-
-        values.push(newItem);
-      } else if (values.every(item => isPrimitive(item))) {
-        values.push("");
-      } else {
-        values.push({});
+        return;
       }
 
-      onChange(path, clone(values));
-      renderItems();
-    });
+      nextValue = Number(input.value);
 
-    renderItems();
-    container.appendChild(addButton);
-
-    return container;
-  }
-
-  /* ---------------------------------------------------------
-     10. CLEAR OBJECT VALUES
-     --------------------------------------------------------- */
-
-  function clearObjectValues(object) {
-    if (Array.isArray(object)) return [];
-
-    if (!isObject(object)) return "";
-
-    const result = {};
-
-    Object.keys(object).forEach(key => {
-      const value = object[key];
-
-      if (typeof value === "string") {
-        result[key] = "";
-      } else if (typeof value === "number") {
-        result[key] = 0;
-      } else if (typeof value === "boolean") {
-        result[key] = false;
-      } else if (Array.isArray(value)) {
-        result[key] = [];
-      } else if (isObject(value)) {
-        result[key] = clearObjectValues(value);
-      } else {
-        result[key] = null;
+      if (!Number.isFinite(nextValue)) {
+        showStatus("Valeur numérique invalide.", "error");
+        return;
       }
-    });
-
-    return result;
-  }
-
-  /* ---------------------------------------------------------
-     11. SECTION EDITOR
-     --------------------------------------------------------- */
-
-  function renderSection(section) {
-    const editor = document.getElementById("sectionEditor");
-    if (!editor) return;
-
-    editor.replaceChildren();
-
-    const data = currentData[section];
-
-    const heading = createElement(
-      "h2",
-      "admin-section-title",
-      SECTION_LABELS[section] || labelize(section)
-    );
-
-    const description = createElement(
-      "p",
-      "admin-section-description",
-      "Modifie les champs ci-dessous, puis clique sur « Enregistrer »."
-    );
-
-    const status = createElement("div", "admin-status");
-    status.id = "editorStatus";
-    status.hidden = true;
-
-    const fields = createElement("div", "admin-section-fields");
-
-    function handleChange(path, value) {
-      setPathValue(currentData[section], path, value);
-      updateSaveButton();
-      renderNavigation();
-      clearStatus(status);
     }
-
-    if (isPrimitive(data)) {
-      fields.appendChild(
-        createPrimitiveField(
-          section,
-          data,
-          section,
-          nextValue => {
-            currentData[section] = nextValue;
-            updateSaveButton();
-            renderNavigation();
-            clearStatus(status);
-          }
-        )
-      );
-    } else if (Array.isArray(data)) {
-      if (data.every(item => isPrimitive(item))) {
-        fields.appendChild(
-          renderStringArray(section, data, section, handleChange)
-        );
-      } else {
-        fields.appendChild(
-          renderComplexArray(section, data, section, handleChange)
-        );
-      }
-    } else if (isObject(data)) {
-      Object.keys(data).forEach(key => {
-        const value = data[key];
-        const path = createPath("", key);
-
-        if (isPrimitive(value)) {
-          fields.appendChild(
-            createPrimitiveField(
-              key,
-              value,
-              path,
-              nextValue => handleChange(path, nextValue)
-            )
-          );
-        } else if (Array.isArray(value)) {
-          fields.appendChild(
-            value.every(item => isPrimitive(item))
-              ? renderStringArray(key, value, path, handleChange)
-              : renderComplexArray(key, value, path, handleChange)
-          );
-        } else if (isObject(value)) {
-          if (
-            ["fr", "en", "ar"].some(language =>
-              Object.prototype.hasOwnProperty.call(value, language)
-            )
-          ) {
-            fields.appendChild(
-              renderLanguageObject(key, value, path, handleChange)
-            );
-          } else {
-            fields.appendChild(
-              renderObject(key, value, path, handleChange)
-            );
-          }
-        }
-      });
-    } else {
-      fields.appendChild(
-        createElement(
-          "p",
-          "admin-empty",
-          "Aucun contenu modifiable dans cette section."
-        )
-      );
-    }
-
-    const actions = createElement("div", "admin-editor-actions");
-
-    const saveButton = createElement("button", "admin-button admin-button-primary", "Enregistrer");
-    saveButton.type = "button";
-    saveButton.id = "saveSectionBtn";
-    saveButton.addEventListener("click", () => saveSection(section));
-
-    const resetButton = createElement("button", "admin-button admin-button-secondary", "Réinitialiser");
-    resetButton.type = "button";
-    resetButton.addEventListener("click", () => {
-      if (!isDirty(section)) return;
-
-      const confirmed = window.confirm(
-        "Annuler toutes les modifications non enregistrées de cette section ?"
-      );
-
-      if (!confirmed) return;
-
-      currentData[section] = clone(JSON.parse(savedSnapshots[section]));
-      renderSection(section);
-      renderNavigation();
-    });
-
-    actions.append(saveButton, resetButton);
-    editor.append(heading, description, status, fields, actions);
-
-    updateSaveButton();
-  }
-
-  function updateSaveButton() {
-    const button = document.getElementById("saveSectionBtn");
-
-    if (!button || !currentSection) return;
-
-    const dirty = isDirty(currentSection);
-    const saving = savingSections.has(currentSection);
-
-    button.disabled = saving || !dirty;
-    button.textContent = saving
-      ? "Enregistrement..."
-      : dirty
-        ? "Enregistrer les modifications"
-        : "Aucune modification";
-  }
-
-  function renderCurrentSection() {
-    if (currentSection && currentData[currentSection] !== undefined) {
-      renderSection(currentSection);
-    }
-  }
-
-  /* ---------------------------------------------------------
-     12. SECTION NAVIGATION
-     --------------------------------------------------------- */
-
-  function renderNavigation() {
-    const nav = document.getElementById("sectionNav");
-    if (!nav) return;
-
-    nav.replaceChildren();
-
-    Object.keys(currentData).forEach(section => {
-      const button = createElement("button", "admin-nav-button");
-
-      const dirty = isDirty(section);
-      const label = SECTION_LABELS[section] || labelize(section);
-
-      button.textContent = dirty ? `${label} •` : label;
-      button.type = "button";
-      button.dataset.section = section;
-      button.classList.toggle("active", section === currentSection);
-      button.classList.toggle("dirty", dirty);
-      button.setAttribute("aria-current", section === currentSection ? "page" : "false");
-
-      button.addEventListener("click", () => {
-        if (section === currentSection) return;
-        if (!confirmDiscard(currentSection)) return;
-
-        currentSection = section;
-        renderNavigation();
-        renderCurrentSection();
-      });
-
-      nav.appendChild(button);
-    });
-  }
-
-  /* ---------------------------------------------------------
-     13. LOAD CONTENT FROM SUPABASE
-     --------------------------------------------------------- */
-
-  async function loadSections() {
-    if (!supabase) {
-      throw new Error(
-        "Le client Supabase est introuvable. Vérifie le chargement de supabaseClient."
-      );
-    }
-
-    isLoading = true;
 
     try {
-      const { data, error } = await supabase
-        .from("site_content")
-        .select("section, content");
-
-      if (error) throw error;
-
-      if (!Array.isArray(data) || data.length === 0) {
-        throw new Error(
-          "Aucun contenu trouvé dans site_content. Vérifie les données de la base."
-        );
-      }
-
-      const nextData = {};
-      const nextSnapshots = {};
-
-      data.forEach(row => {
-        if (typeof row.section !== "string") return;
-
-        nextData[row.section] = clone(row.content);
-        nextSnapshots[row.section] = JSON.stringify(row.content);
-      });
-
-      currentData = nextData;
-      savedSnapshots = nextSnapshots;
-
-      const preferredSection = Object.keys(SECTION_LABELS).find(
-        section => Object.prototype.hasOwnProperty.call(currentData, section)
-      );
-
-      currentSection = preferredSection || Object.keys(currentData)[0] || null;
-
-      if (!currentSection) {
-        throw new Error("Aucune section valide n’a été chargée.");
-      }
-
-      renderNavigation();
-      renderCurrentSection();
-    } finally {
-      isLoading = false;
-    }
-  }
-
-  /* ---------------------------------------------------------
-     14. SAVE A SECTION
-     --------------------------------------------------------- */
-
-  async function saveSection(section) {
-    if (!supabase) {
-      showStatus("Connexion à Supabase indisponible.", "error");
-      return;
-    }
-
-    if (savingSections.has(section)) return;
-
-    const saveButton = document.getElementById("saveSectionBtn");
-
-    if (!isDirty(section)) {
-      showStatus("Aucune modification à enregistrer.", "info");
-      return;
-    }
-
-    savingSections.add(section);
-
-    if (saveButton && currentSection === section) {
-      saveButton.disabled = true;
-      saveButton.textContent = "Enregistrement...";
-    }
-
-    const submittedSnapshot = clone(currentData[section]);
-    const submittedJson = JSON.stringify(submittedSnapshot);
-
-    try {
-      const { error } = await supabase
-        .from("site_content")
-        .update({ content: submittedSnapshot })
-        .eq("section", section);
-
-      if (error) throw error;
-
-      savedSnapshots[section] = submittedJson;
-
-      if (currentSection === section) {
-        showStatus("Modifications enregistrées avec succès.", "success");
-      }
-
-      renderNavigation();
-
-      if (currentSection === section) {
-        updateSaveButton();
-      }
+      setPathValue(currentData, path, nextValue);
     } catch (error) {
-      console.error("Erreur lors de l'enregistrement :", error);
-
+      console.error(error);
       showStatus(
-        `Échec de l’enregistrement : ${error.message || "erreur inconnue"}`,
+        "Impossible de modifier ce champ.",
         "error"
       );
-    } finally {
-      savingSections.delete(section);
-
-      if (currentSection === section) {
-        updateSaveButton();
-      }
     }
+
+    updatePreview();
   }
 
-  /* ---------------------------------------------------------
-     15. AUTHENTICATION CHECK
-     --------------------------------------------------------- */
+  input.addEventListener("input", updateValue);
+  input.addEventListener("change", updateValue);
 
-  async function checkAdmin(user) {
-    if (!supabase || !user) return false;
+  wrapper.appendChild(label);
+  wrapper.appendChild(input);
 
-    try {
-      const { data, error } = await supabase
-        .from("admin_users")
-        .select("user_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Erreur de vérification administrateur :", error);
-        return false;
-      }
-
-      return Boolean(data && data.user_id === user.id);
-    } catch (error) {
-      console.error("Vérification administrateur impossible :", error);
-      return false;
-    }
+  if (preview) {
+    wrapper.appendChild(preview);
   }
 
-  /* ---------------------------------------------------------
-     16. LOGIN / LOGOUT UI
-     --------------------------------------------------------- */
-
-  function showLogin() {
-    const loginSection = document.getElementById("loginSection");
-    const adminSection = document.getElementById("adminSection");
-
-    if (loginSection) loginSection.hidden = false;
-    if (adminSection) adminSection.hidden = true;
-
-    currentUser = null;
-    adminInitialized = false;
+  if (openLink) {
+    wrapper.appendChild(openLink);
   }
 
-  function buildAdminLayout() {
-    const adminSection = document.getElementById("adminSection");
-    if (!adminSection) return;
+  updatePreview();
 
-    let layout = document.getElementById("cmsLayout");
+  return wrapper;
+}
 
-    if (!layout) {
-      layout = createElement("div", "admin-layout");
-      layout.id = "cmsLayout";
+/* =========================================================
+   OBJET MULTILINGUE FR / EN
+========================================================= */
 
-      const sidebar = createElement("aside", "admin-sidebar");
-      const sidebarTitle = createElement("h2", "admin-sidebar-title", "Contenus du site");
+function renderLanguageObject(obj, path, title) {
+  const container = document.createElement("div");
+  container.className = "cms-language-group";
 
-      const nav = createElement("nav", "admin-navigation");
-      nav.id = "sectionNav";
-      nav.setAttribute("aria-label", "Sections du contenu");
+  Object.assign(container.style, {
+    border: "1px solid #e5e7eb",
+    borderRadius: "12px",
+    padding: "18px",
+    marginBottom: "18px",
+    background: "#fafafa"
+  });
 
-      sidebar.append(sidebarTitle, nav);
+  if (title) {
+    const heading = document.createElement("h3");
+    heading.textContent = title;
 
-      const main = createElement("main", "admin-main");
-      const editor = createElement("div", "admin-editor");
-      editor.id = "sectionEditor";
+    Object.assign(heading.style, {
+      margin: "0 0 18px",
+      fontSize: "17px",
+      color: "#111827"
+    });
 
-      main.appendChild(editor);
-      layout.append(sidebar, main);
-      adminSection.appendChild(layout);
-    }
+    container.appendChild(heading);
   }
 
-  async function showAdmin(user) {
-    const loginSection = document.getElementById("loginSection");
-    const adminSection = document.getElementById("adminSection");
-
-    if (loginSection) loginSection.hidden = true;
-    if (adminSection) adminSection.hidden = false;
-
-    currentUser = user;
-
-    buildAdminLayout();
-
-    if (!adminInitialized) {
-      try {
-        const editor = document.getElementById("sectionEditor");
-
-        if (editor) {
-          editor.replaceChildren(
-            createElement("p", "admin-loading", "Chargement des contenus...")
-          );
-        }
-
-        await loadSections();
-        adminInitialized = true;
-      } catch (error) {
-        console.error("Erreur de chargement des contenus :", error);
-
-        showStatus(
-          `Impossible de charger les contenus : ${error.message || "erreur inconnue"}`,
-          "error",
-          document.getElementById("sectionEditor")
-        );
-      }
-    }
-  }
-
-  async function login(event) {
-    event.preventDefault();
-
-    const emailInput = document.getElementById("email");
-    const passwordInput = document.getElementById("password");
-    const status = document.getElementById("loginStatus");
-
-    if (!supabase) {
-      showStatus("Le client Supabase n’est pas initialisé.", "error", status);
+  ["fr", "en"].forEach(lang => {
+    if (!Object.prototype.hasOwnProperty.call(obj, lang)) {
       return;
     }
 
-    const email = emailInput ? emailInput.value.trim() : "";
-    const password = passwordInput ? passwordInput.value : "";
+    const languageBox = document.createElement("div");
 
-    if (!email || !password) {
-      showStatus("Veuillez saisir votre e-mail et votre mot de passe.", "error", status);
-      return;
-    }
+    Object.assign(languageBox.style, {
+      background: "#fff",
+      border: "1px solid #e5e7eb",
+      borderRadius: "9px",
+      padding: "14px",
+      marginBottom: "12px"
+    });
 
-    const submitButton = document.querySelector(
-      '#loginForm button[type="submit"], #loginForm input[type="submit"]'
+    const languageTitle = document.createElement("div");
+    languageTitle.textContent = languageLabel(lang);
+
+    Object.assign(languageTitle.style, {
+      fontWeight: "700",
+      marginBottom: "8px",
+      color: "#111827"
+    });
+
+    languageBox.appendChild(languageTitle);
+
+    const value = obj[lang];
+
+    const field = createPrimitiveField(
+      value,
+      `${path}.${lang}`,
+      {
+        label: lang === "fr" ? "Français" : "English",
+        long: String(value ?? "").length > 120
+      }
     );
 
-    if (submitButton) {
-      submitButton.disabled = true;
-      submitButton.dataset.originalText =
-        submitButton.tagName === "INPUT"
-          ? submitButton.value
-          : submitButton.textContent;
+    languageBox.appendChild(field);
+    container.appendChild(languageBox);
+  });
 
-      if (submitButton.tagName === "INPUT") {
-        submitButton.value = "Connexion...";
+  return container;
+}
+
+/* =========================================================
+   TABLEAU DE CHAÎNES
+========================================================= */
+
+function renderStringArray(array, path, title) {
+  const container = document.createElement("div");
+  container.className = "cms-array";
+
+  const header = document.createElement("div");
+
+  Object.assign(header.style, {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "12px"
+  });
+
+  const heading = document.createElement("h3");
+  heading.textContent = `${title} (${array.length})`;
+  heading.style.margin = "0";
+
+  const add = document.createElement("button");
+  add.type = "button";
+  add.textContent = "+ Ajouter";
+  add.className = "secondary";
+
+  add.onclick = () => {
+    array.push("");
+    renderCurrentSection();
+  };
+
+  header.append(heading, add);
+  container.appendChild(header);
+
+  array.forEach((item, index) => {
+    const row = document.createElement("div");
+
+    Object.assign(row.style, {
+      display: "flex",
+      gap: "8px",
+      marginBottom: "10px",
+      alignItems: "flex-start"
+    });
+
+    const input = document.createElement("textarea");
+    input.rows = 2;
+    input.value = item ?? "";
+
+    Object.assign(input.style, {
+      flex: "1",
+      padding: "10px",
+      border: "1px solid #d1d5db",
+      borderRadius: "8px",
+      font: "inherit",
+      resize: "vertical"
+    });
+
+    input.oninput = () => {
+      array[index] = input.value;
+    };
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "×";
+    remove.className = "danger";
+    remove.title = "Supprimer";
+
+    remove.onclick = () => {
+      if (
+        !window.confirm(
+          "Supprimer cet élément de la liste ?"
+        )
+      ) {
+        return;
+      }
+
+      array.splice(index, 1);
+      renderCurrentSection();
+    };
+
+    row.append(input, remove);
+    container.appendChild(row);
+  });
+
+  return container;
+}
+
+/* =========================================================
+   OBJET
+========================================================= */
+
+function renderObject(obj, path, title = "") {
+  const container = document.createElement("div");
+  container.className = "cms-object";
+
+  if (title) {
+    const heading = document.createElement("h3");
+    heading.textContent = title;
+
+    Object.assign(heading.style, {
+      marginTop: "0",
+      marginBottom: "18px",
+      fontSize: "18px",
+      color: "#111827"
+    });
+
+    container.appendChild(heading);
+  }
+
+  Object.keys(obj).forEach(key => {
+    const value = obj[key];
+
+    const childPath = path
+      ? `${path}.${key}`
+      : key;
+
+    // Objet bilingue FR / EN
+    if (
+      isObject(value) &&
+      (
+        Object.prototype.hasOwnProperty.call(value, "fr") ||
+        Object.prototype.hasOwnProperty.call(value, "en")
+      ) &&
+      Object.keys(value).every(k => k === "fr" || k === "en")
+    ) {
+      container.appendChild(
+        renderLanguageObject(value, childPath, labelize(key))
+      );
+
+      return;
+    }
+
+    // Valeur simple
+    if (isPrimitive(value)) {
+      container.appendChild(
+        createPrimitiveField(value, childPath)
+      );
+
+      return;
+    }
+
+    // Tableau
+    if (Array.isArray(value)) {
+      if (value.every(item => isPrimitive(item))) {
+        container.appendChild(
+          renderStringArray(value, childPath, labelize(key))
+        );
       } else {
-        submitButton.textContent = "Connexion...";
+        container.appendChild(
+          renderComplexArray(value, childPath, labelize(key))
+        );
+      }
+
+      return;
+    }
+
+    // Objet imbriqué
+    if (isObject(value)) {
+      const group = document.createElement("div");
+
+      Object.assign(group.style, {
+        border: "1px solid #e5e7eb",
+        borderRadius: "10px",
+        padding: "18px",
+        marginBottom: "18px",
+        background: "#fafafa"
+      });
+
+      group.appendChild(
+        renderObject(value, childPath, labelize(key))
+      );
+
+      container.appendChild(group);
+    }
+  });
+
+  return container;
+}
+
+/* =========================================================
+   TABLEAU COMPLEXE
+========================================================= */
+
+function renderComplexArray(array, path, title) {
+  const container = document.createElement("div");
+
+  Object.assign(container.style, {
+    marginBottom: "25px"
+  });
+
+  const header = document.createElement("div");
+
+  Object.assign(header.style, {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "12px"
+  });
+
+  const titleElement = document.createElement("h3");
+  titleElement.textContent = `${title} (${array.length})`;
+  titleElement.style.margin = "0";
+
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "secondary";
+  add.textContent = "+ Ajouter";
+
+  add.onclick = () => {
+    let template = {};
+
+    if (array.length > 0) {
+      template = clone(array[0]);
+
+      if (isObject(template)) {
+        clearObjectValues(template);
+      } else if (Array.isArray(template)) {
+        template = [];
+      } else if (typeof template === "boolean") {
+        template = false;
+      } else {
+        template = "";
       }
     }
 
-    clearStatus(status);
+    array.push(template);
+    renderCurrentSection();
+  };
 
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+  header.append(titleElement, add);
+  container.appendChild(header);
+
+  array.forEach((item, index) => {
+    const card = document.createElement("div");
+
+    Object.assign(card.style, {
+      border: "1px solid #e5e7eb",
+      borderRadius: "12px",
+      padding: "20px",
+      marginBottom: "15px",
+      background: "#fff"
+    });
+
+    const cardHeader = document.createElement("div");
+
+    Object.assign(cardHeader.style, {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "15px"
+    });
+
+    const number = document.createElement("strong");
+    number.textContent = `${title} — ${index + 1}`;
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "danger";
+    remove.textContent = "Supprimer";
+
+    remove.onclick = () => {
+      if (
+        !window.confirm(
+          "Supprimer cet élément de l'éditeur ?"
+        )
+      ) {
+        return;
+      }
+
+      array.splice(index, 1);
+      renderCurrentSection();
+    };
+
+    cardHeader.append(number, remove);
+    card.appendChild(cardHeader);
+
+    if (isObject(item)) {
+      card.appendChild(
+        renderObject(item, `${path}.${index}`)
+      );
+    } else if (Array.isArray(item)) {
+      card.appendChild(
+        renderComplexArray(item, `${path}.${index}`, `${title} — ${index + 1}`)
+      );
+    } else {
+      card.appendChild(
+        createPrimitiveField(item, `${path}.${index}`)
+      );
+    }
+
+    container.appendChild(card);
+  });
+
+  return container;
+}
+
+/* =========================================================
+   NETTOYAGE D'UN NOUVEL ÉLÉMENT
+========================================================= */
+
+function clearObjectValues(obj) {
+  Object.keys(obj).forEach(key => {
+    if (Array.isArray(obj[key])) {
+      obj[key] = [];
+    } else if (isObject(obj[key])) {
+      clearObjectValues(obj[key]);
+    } else if (typeof obj[key] === "boolean") {
+      obj[key] = false;
+    } else if (typeof obj[key] === "number") {
+      obj[key] = 0;
+    } else {
+      obj[key] = "";
+    }
+  });
+
+  return obj;
+}
+
+/* =========================================================
+   AFFICHAGE D'UNE SECTION
+========================================================= */
+
+function renderSection(section) {
+  const container = document.getElementById("sectionEditor");
+
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const data = currentData[section];
+
+  if (data === undefined) {
+    container.textContent = "Cette section est introuvable.";
+    return;
+  }
+
+  const title = document.createElement("h2");
+  title.textContent = SECTION_LABELS[section] || labelize(section);
+
+  Object.assign(title.style, {
+    marginTop: "0",
+    marginBottom: "8px"
+  });
+
+  container.appendChild(title);
+
+  const description = document.createElement("p");
+  description.textContent =
+    "Modifie les informations puis clique sur « Enregistrer ».";
+
+  Object.assign(description.style, {
+    color: "#6b7280",
+    marginBottom: "25px"
+  });
+
+  container.appendChild(description);
+
+  const editor = document.createElement("div");
+
+  if (Array.isArray(data)) {
+    editor.appendChild(
+      renderComplexArray(
+        data,
+        section,
+        SECTION_LABELS[section] || section
+      )
+    );
+  } else if (isObject(data)) {
+    editor.appendChild(renderObject(data, section));
+  } else {
+    editor.appendChild(createPrimitiveField(data, section));
+  }
+
+  container.appendChild(editor);
+
+  const actions = document.createElement("div");
+
+  Object.assign(actions.style, {
+    display: "flex",
+    gap: "10px",
+    marginTop: "25px",
+    paddingTop: "20px",
+    borderTop: "1px solid #e5e7eb"
+  });
+
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "primary";
+  save.textContent = "💾 Enregistrer";
+
+  save.onclick = () => saveSection(section);
+
+  actions.appendChild(save);
+  container.appendChild(actions);
+}
+
+function renderCurrentSection() {
+  if (currentSection) {
+    renderSection(currentSection);
+  }
+}
+
+/* =========================================================
+   NAVIGATION — PROTECTION DES MODIFICATIONS
+========================================================= */
+
+function renderNavigation() {
+  const nav = document.getElementById("sectionNav");
+
+  if (!nav) return;
+
+  nav.innerHTML = "";
+
+  Object.keys(SECTION_LABELS).forEach(section => {
+    const button = document.createElement("button");
+
+    button.type = "button";
+    button.textContent = SECTION_LABELS[section];
+
+    Object.assign(button.style, {
+      width: "100%",
+      textAlign: "left",
+      padding: "12px 14px",
+      border: "0",
+      borderRadius: "8px",
+      background:
+        section === currentSection ? "#111827" : "transparent",
+      color:
+        section === currentSection ? "#fff" : "#374151",
+      cursor: "pointer",
+      marginBottom: "4px",
+      fontWeight:
+        section === currentSection ? "600" : "400"
+    });
+
+    button.onclick = () => {
+      if (section === currentSection) return;
+
+      if (!confirmDiscard(currentSection)) {
+        return;
+      }
+
+      currentSection = section;
+
+      renderNavigation();
+      renderSection(section);
+    };
+
+    nav.appendChild(button);
+  });
+}
+
+/* =========================================================
+   CHARGEMENT SUPABASE — SANS MODIFIER LES DONNÉES
+========================================================= */
+
+async function loadSections() {
+  showStatus("Chargement du contenu...");
+
+  try {
+    const { data, error } = await window.supabaseClient
+      .from("site_content")
+      .select("section, content");
+
+    if (error) throw error;
+
+    if (!Array.isArray(data)) {
+      throw new Error("Réponse Supabase invalide.");
+    }
+
+    // On remplace uniquement l'état local du navigateur.
+    // Aucune écriture dans Supabase n'est effectuée ici.
+    currentData = {};
+    savedSnapshots.clear();
+
+    data.forEach(row => {
+      currentData[row.section] = clone(row.content);
+
+      savedSnapshots.set(
+        row.section,
+        snapshot(row.content)
+      );
+    });
+
+    if (!currentSection || !(currentSection in currentData)) {
+      currentSection =
+        "profile" in currentData
+          ? "profile"
+          : Object.keys(currentData)[0] || null;
+    }
+
+    renderNavigation();
+
+    if (currentSection) {
+      renderSection(currentSection);
+    }
+
+    showStatus("Contenu chargé.");
+  } catch (error) {
+    console.error("Erreur de chargement :", error);
+
+    showStatus(
+      "Impossible de charger le contenu. Vérifie la connexion et les droits d'accès.",
+      "error"
+    );
+  }
+}
+
+/* =========================================================
+   SAUVEGARDE — CONTRÔLE ET GESTION DES ERREURS
+========================================================= */
+
+async function saveSection(section) {
+  if (savingSections.has(section)) {
+    return;
+  }
+
+  if (!(section in currentData)) {
+    showStatus("Section introuvable.", "error");
+    return;
+  }
+
+  const button = document.querySelector(
+    "#sectionEditor button.primary"
+  );
+
+  savingSections.add(section);
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "⏳ Enregistrement...";
+  }
+
+  try {
+    // Copie exacte de ce qui sera envoyé.
+    const contentToSave = clone(currentData[section]);
+
+    const { data, error } = await window.supabaseClient
+      .from("site_content")
+      .update({
+        content: contentToSave
+      })
+      .eq("section", section)
+      .select("section");
+
+    if (error) {
+      throw error;
+    }
+
+    // On attend exactement une ligne mise à jour.
+    if (!data || data.length !== 1) {
+      throw new Error(
+        "Aucune ligne mise à jour. Vérifie les droits d'administration et les politiques RLS."
+      );
+    }
+
+    // La référence devient celle de la version envoyée,
+    // et non celle d'éventuelles modifications ultérieures.
+    savedSnapshots.set(
+      section,
+      snapshot(contentToSave)
+    );
+
+    if (isDirty(section)) {
+      showStatus(
+        "La version envoyée est enregistrée, mais des modifications supplémentaires restent à sauvegarder.",
+        "error"
+      );
+    } else {
+      showStatus(
+        `✅ ${SECTION_LABELS[section] || section} enregistré.`
+      );
+    }
+  } catch (error) {
+    console.error("Erreur de sauvegarde :", error);
+
+    showStatus(
+      "Échec de la sauvegarde. Les modifications restent dans l'éditeur. Vérifie la connexion et les droits avant de réessayer.",
+      "error"
+    );
+  } finally {
+    savingSections.delete(section);
+
+    if (button && button.isConnected) {
+      button.disabled = false;
+      button.textContent = "💾 Enregistrer";
+    }
+  }
+}
+
+/* =========================================================
+   VÉRIFICATION DU COMPTE ADMINISTRATEUR
+========================================================= */
+
+async function checkAdmin() {
+  try {
+    const {
+      data: { session },
+      error: sessionError
+    } = await window.supabaseClient.auth.getSession();
+
+    if (sessionError) {
+      throw sessionError;
+    }
+
+    if (!session) {
+      currentUser = null;
+      showLogin();
+      return;
+    }
+
+    const { data, error } = await window.supabaseClient
+      .from("admin_users")
+      .select("user_id")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+
+    if (error || !data) {
+      await window.supabaseClient.auth.signOut();
+
+      currentUser = null;
+      currentData = {};
+      savedSnapshots.clear();
+      currentSection = null;
+
+      showLogin();
+
+      showStatus(
+        "Accès administrateur refusé.",
+        "error"
+      );
+
+      return;
+    }
+
+    currentUser = session.user;
+
+    showAdmin();
+
+    await loadSections();
+  } catch (error) {
+    console.error("Erreur de vérification admin :", error);
+
+    showLogin();
+
+    showStatus(
+      "Impossible de vérifier la session. Réessaie après avoir vérifié ta connexion.",
+      "error"
+    );
+  }
+}
+
+function showLogin() {
+  const login = document.getElementById("loginSection");
+  const admin = document.getElementById("adminSection");
+
+  if (login) {
+    login.classList.remove("hidden");
+  }
+
+  if (admin) {
+    admin.classList.add("hidden");
+  }
+}
+
+function showAdmin() {
+  const login = document.getElementById("loginSection");
+  const admin = document.getElementById("adminSection");
+
+  if (login) {
+    login.classList.add("hidden");
+  }
+
+  if (admin) {
+    admin.classList.remove("hidden");
+  }
+}
+
+/* =========================================================
+   CONNEXION
+========================================================= */
+
+async function login(email, password) {
+  try {
+    const { error } = await window.supabaseClient.auth
+      .signInWithPassword({
         email,
         password
       });
 
-      if (error) throw error;
+    if (error) {
+      showStatus(
+        "Connexion impossible. Vérifie tes identifiants.",
+        "error"
+      );
 
-      const user = data.user;
-
-      if (!user) {
-        throw new Error("Aucun utilisateur n’a été retourné.");
-      }
-
-      const isAdmin = await checkAdmin(user);
-
-      if (!isAdmin) {
-        await supabase.auth.signOut();
-
-        throw new Error(
-          "Ce compte n’est pas autorisé à accéder à l’administration."
-        );
-      }
-
-      currentUser = user;
-      adminInitialized = false;
-
-      await showAdmin(user);
-    } catch (error) {
       console.error("Erreur de connexion :", error);
-
-      showStatus(
-        error.message || "Connexion impossible. Vérifiez vos identifiants.",
-        "error",
-        status
-      );
-    } finally {
-      if (submitButton) {
-        submitButton.disabled = false;
-
-        if (submitButton.tagName === "INPUT") {
-          submitButton.value = submitButton.dataset.originalText || "Connexion";
-        } else {
-          submitButton.textContent = submitButton.dataset.originalText || "Connexion";
-        }
-      }
-    }
-  }
-
-  async function logout() {
-    if (!confirmLeaveAdmin()) return;
-
-    try {
-      if (supabase) {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
-      }
-
-      currentData = {};
-      savedSnapshots = {};
-      currentSection = null;
-      currentUser = null;
-      adminInitialized = false;
-
-      showLogin();
-    } catch (error) {
-      console.error("Erreur de déconnexion :", error);
-
-      showStatus(
-        `Impossible de se déconnecter : ${error.message || "erreur inconnue"}`
-      );
-    }
-  }
-
-  /* ---------------------------------------------------------
-     17. INITIALIZATION
-     --------------------------------------------------------- */
-
-  async function initializeAdmin() {
-    const loginForm = document.getElementById("loginForm");
-    const logoutButton = document.getElementById("logoutBtn");
-
-    if (loginForm) {
-      loginForm.addEventListener("submit", login);
-    }
-
-    if (logoutButton) {
-      logoutButton.addEventListener("click", logout);
-    }
-
-    if (!supabase) {
-      showLogin();
-
-      showStatus(
-        "Supabase n’est pas initialisé. Vérifie que le script client Supabase est chargé avant admin.js.",
-        "error",
-        document.getElementById("loginStatus")
-      );
-
       return;
     }
 
-    try {
-      const { data, error } = await supabase.auth.getSession();
+    await checkAdmin();
+  } catch (error) {
+    console.error("Erreur de connexion :", error);
 
-      if (error) throw error;
+    showStatus(
+      "Une erreur est survenue pendant la connexion.",
+      "error"
+    );
+  }
+}
 
-      const user = data.session?.user;
+/* =========================================================
+   INITIALISATION DE L'INTERFACE
+========================================================= */
 
-      if (!user) {
-        showLogin();
-        return;
-      }
+document.addEventListener("DOMContentLoaded", () => {
+  if (adminInitialized) return;
 
-      const isAdmin = await checkAdmin(user);
+  adminInitialized = true;
 
-      if (!isAdmin) {
-        await supabase.auth.signOut();
-        showLogin();
+  const loginForm = document.getElementById("loginForm");
 
+  if (loginForm) {
+    loginForm.addEventListener("submit", async event => {
+      event.preventDefault();
+
+      const email = document
+        .getElementById("email")
+        ?.value
+        .trim();
+
+      const password = document
+        .getElementById("password")
+        ?.value;
+
+      if (!email || !password) {
         showStatus(
-          "Ce compte n’est pas autorisé à accéder à l’administration.",
-          "error",
-          document.getElementById("loginStatus")
+          "Veuillez remplir les deux champs.",
+          "error"
         );
 
         return;
       }
 
-      await showAdmin(user);
-    } catch (error) {
-      console.error("Erreur d'initialisation :", error);
+      await login(email, password);
+    });
+  }
 
-      showLogin();
+  /* -------------------------------------------------------
+     DÉCONNEXION — DEMANDE DE CONFIRMATION
+  ------------------------------------------------------- */
 
-      showStatus(
-        `Erreur d’initialisation : ${error.message || "erreur inconnue"}`,
-        "error",
-        document.getElementById("loginStatus")
-      );
-    }
+  const logout = document.getElementById("logoutBtn");
 
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") {
-        currentUser = null;
-        adminInitialized = false;
-        showLogin();
+  if (logout) {
+    logout.addEventListener("click", async event => {
+      event.preventDefault();
+
+      if (!confirmLeaveAdmin()) {
+        return;
       }
 
-      if (event === "SIGNED_IN" && session?.user) {
-        currentUser = session.user;
+      try {
+        const { error } =
+          await window.supabaseClient.auth.signOut();
+
+        if (error) {
+          throw error;
+        }
+
+        currentUser = null;
+        currentData = {};
+        savedSnapshots.clear();
+        currentSection = null;
+
+        showLogin();
+
+        showStatus("Déconnexion effectuée.");
+      } catch (error) {
+        console.error("Erreur de déconnexion :", error);
+
+        showStatus(
+          "La déconnexion a échoué. Réessaie.",
+          "error"
+        );
       }
     });
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initializeAdmin);
-  } else {
-    initializeAdmin();
+  /* -------------------------------------------------------
+     CONSTRUCTION DE L'INTERFACE CMS
+  ------------------------------------------------------- */
+
+  const adminSection =
+    document.getElementById("adminSection");
+
+  if (adminSection) {
+    const existing =
+      document.getElementById("cmsLayout");
+
+    if (!existing) {
+      const layout = document.createElement("div");
+      layout.id = "cmsLayout";
+
+      Object.assign(layout.style, {
+        display: "grid",
+        gridTemplateColumns: "260px 1fr",
+        gap: "25px",
+        alignItems: "start"
+      });
+
+      /* SIDEBAR */
+
+      const sidebar = document.createElement("div");
+
+      Object.assign(sidebar.style, {
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        borderRadius: "14px",
+        padding: "15px",
+        position: "sticky",
+        top: "20px"
+      });
+
+      const sidebarTitle = document.createElement("h3");
+      sidebarTitle.textContent = "Sections";
+
+      Object.assign(sidebarTitle.style, {
+        margin: "5px 8px 15px"
+      });
+
+      const nav = document.createElement("div");
+      nav.id = "sectionNav";
+
+      sidebar.append(sidebarTitle, nav);
+
+      /* ÉDITEUR */
+
+      const editorCard = document.createElement("div");
+
+      Object.assign(editorCard.style, {
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        borderRadius: "14px",
+        padding: "25px"
+      });
+
+      const editor = document.createElement("div");
+      editor.id = "sectionEditor";
+
+      editorCard.appendChild(editor);
+      layout.append(sidebar, editorCard);
+      adminSection.appendChild(layout);
+
+      /* STYLE */
+
+      const style = document.createElement("style");
+
+      style.textContent = `
+        @media (max-width: 800px) {
+          #cmsLayout {
+            grid-template-columns: 1fr !important;
+          }
+
+          #sectionNav {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+          }
+
+          #cmsLayout > div:first-child {
+            position: static !important;
+          }
+        }
+
+        .cms-field label {
+          font-size: 14px;
+        }
+
+        .cms-field input:focus,
+        .cms-field textarea:focus,
+        .cms-field select:focus {
+          outline: none;
+          border-color: #111827 !important;
+          box-shadow: 0 0 0 3px rgba(17,24,39,.08);
+        }
+
+        .secondary {
+          background: #e5e7eb;
+          color: #111827;
+          border: 0;
+          border-radius: 8px;
+          padding: 9px 13px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .secondary:hover {
+          background: #d1d5db;
+        }
+
+        .primary {
+          background: #111827;
+          color: white;
+          border: 0;
+          border-radius: 8px;
+          padding: 11px 18px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .primary:hover {
+          opacity: .9;
+        }
+
+        .danger {
+          background: #fee2e2;
+          color: #991b1b;
+          border: 0;
+          border-radius: 8px;
+          padding: 9px 13px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .danger:hover {
+          background: #fecaca;
+        }
+
+        button:disabled {
+          opacity: .6;
+          cursor: wait;
+        }
+      `;
+
+      document.head.appendChild(style);
+    }
   }
-})();
+
+  // Vérifier la session et charger le contenu.
+  checkAdmin();
+});
