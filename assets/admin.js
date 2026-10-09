@@ -255,6 +255,7 @@ function setPathValue(obj, path, value) {
 ========================================================= */
 
 
+
 function createPrimitiveField(value, path, options = {}) {
   const wrapper = document.createElement("div");
   wrapper.className = "cms-field";
@@ -264,6 +265,7 @@ function createPrimitiveField(value, path, options = {}) {
 
   const label = document.createElement("label");
   label.textContent = options.label || labelize(key);
+
   Object.assign(label.style, {
     display: "block",
     fontWeight: "600",
@@ -272,22 +274,17 @@ function createPrimitiveField(value, path, options = {}) {
   });
 
   const isImageField =
-    /(image|photo|avatar|thumbnail|logo|picture|portrait)/i
-      .test(normalizedKey);
+    /(image|photo|avatar|thumbnail|logo|picture|portrait)/i.test(normalizedKey);
 
   const isUrlField =
-    /(url|link|linkedin|youtube|website|site|href|src|cv)/i
-      .test(normalizedKey) ||
-    (typeof value === "string" &&
-      /^https?:\/\//i.test(value.trim()));
+    /(url|link|linkedin|youtube|website|site|href|src|cv)/i.test(normalizedKey) ||
+    (typeof value === "string" && /^https?:\/\//i.test(value.trim()));
 
   const isEmailField =
-    normalizedKey === "email" ||
-    normalizedKey.includes("email");
+    normalizedKey === "email" || normalizedKey.includes("email");
 
   const isLong =
-    options.long ||
-    String(value ?? "").length > 180;
+    options.long || String(value ?? "").length > 180;
 
   let input;
 
@@ -305,29 +302,24 @@ function createPrimitiveField(value, path, options = {}) {
     });
 
     input.value = String(value);
-
   } else if (typeof value === "number") {
     input = document.createElement("input");
     input.type = "number";
     input.step = "any";
     input.value = String(value);
-
   } else if (isEmailField) {
     input = document.createElement("input");
     input.type = "email";
     input.value = value ?? "";
-
   } else if (isUrlField) {
     input = document.createElement("input");
     input.type = "url";
     input.value = value ?? "";
     input.placeholder = "https://...";
-
   } else if (isLong) {
     input = document.createElement("textarea");
     input.rows = 5;
     input.value = value ?? "";
-
   } else {
     input = document.createElement("input");
     input.type = "text";
@@ -381,7 +373,7 @@ function createPrimitiveField(value, path, options = {}) {
     openLink.rel = "noopener noreferrer";
 
     Object.assign(openLink.style, {
-      display: "inline-block",
+      display: "none",
       marginBottom: "12px",
       color: "#2563eb",
       fontWeight: "600",
@@ -396,19 +388,16 @@ function createPrimitiveField(value, path, options = {}) {
         window.location.href
       );
 
-      if (!["http:", "https:"].includes(url.protocol)) {
-        return null;
-      }
-
-      return url.href;
+      return ["http:", "https:"].includes(url.protocol)
+        ? url.href
+        : null;
     } catch {
       return null;
     }
   }
 
   function updatePreview() {
-    const rawValue = input.value.trim();
-    const safeUrl = validHttpUrl(rawValue);
+    const safeUrl = validHttpUrl(input.value);
 
     if (preview) {
       if (safeUrl) {
@@ -436,13 +425,9 @@ function createPrimitiveField(value, path, options = {}) {
 
     if (typeof value === "boolean") {
       nextValue = input.value === "true";
-
     } else if (typeof value === "number") {
       if (input.value.trim() === "") {
-        showStatus(
-          "Ce champ doit contenir un nombre.",
-          "error"
-        );
+        showStatus("Ce champ doit contenir un nombre.", "error");
         return;
       }
 
@@ -457,11 +442,9 @@ function createPrimitiveField(value, path, options = {}) {
     try {
       setPathValue(currentData, path, nextValue);
     } catch (error) {
-      console.error(error);
-      showStatus(
-        "Impossible de modifier ce champ.",
-        "error"
-      );
+      console.error("Erreur de modification du champ :", error);
+      showStatus("Impossible de modifier ce champ.", "error");
+      return;
     }
 
     updatePreview();
@@ -470,8 +453,196 @@ function createPrimitiveField(value, path, options = {}) {
   input.addEventListener("input", updateValue);
   input.addEventListener("change", updateValue);
 
+  // Ordre d'affichage : libellé, champ, gestion du CV, lien/aperçu.
   wrapper.appendChild(label);
   wrapper.appendChild(input);
+
+  if (path === "settings.cv") {
+    const cvManager = document.createElement("div");
+
+    Object.assign(cvManager.style, {
+      margin: "12px 0 18px",
+      padding: "16px",
+      border: "1px solid #e5e7eb",
+      borderRadius: "10px",
+      background: "#f9fafb"
+    });
+
+    const cvTitle = document.createElement("strong");
+    cvTitle.textContent = "Gestion du fichier CV";
+
+    const cvHelp = document.createElement("p");
+    cvHelp.textContent =
+      "Choisis un fichier PDF de 10 Mo maximum. " +
+      "L'ancien CV ne sera pas supprimé automatiquement.";
+
+    Object.assign(cvHelp.style, {
+      color: "#6b7280",
+      fontSize: "13px",
+      lineHeight: "1.5"
+    });
+
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".pdf,application/pdf";
+    fileInput.setAttribute("aria-label", "Sélectionner le nouveau CV");
+
+    Object.assign(fileInput.style, {
+      display: "block",
+      margin: "12px 0",
+      maxWidth: "100%"
+    });
+
+    const uploadButton = document.createElement("button");
+    uploadButton.type = "button";
+    uploadButton.className = "secondary";
+    uploadButton.textContent = "⬆ Importer le nouveau CV";
+
+    uploadButton.addEventListener("click", async () => {
+      const file = fileInput.files?.[0];
+
+      if (!file) {
+        showStatus("Sélectionne d'abord un fichier PDF.", "error");
+        return;
+      }
+
+      if (!file.name.toLowerCase().endsWith(".pdf")) {
+        showStatus("Le fichier doit avoir l'extension .pdf.", "error");
+        return;
+      }
+
+      if (file.type && file.type !== "application/pdf") {
+        showStatus("Le type du fichier ne correspond pas à un PDF.", "error");
+        return;
+      }
+
+      if (file.size === 0) {
+        showStatus("Le fichier sélectionné est vide.", "error");
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        showStatus("Le fichier dépasse la limite de 10 Mo.", "error");
+        return;
+      }
+
+      if (!window.supabaseClient?.storage) {
+        showStatus("Le client Supabase n'est pas disponible.", "error");
+        return;
+      }
+
+      uploadButton.disabled = true;
+      uploadButton.textContent = "⏳ Importation en cours...";
+
+      try {
+        // Vérification complémentaire de la signature PDF.
+        const header = new Uint8Array(
+          await file.slice(0, 5).arrayBuffer()
+        );
+
+        const pdfSignature = String.fromCharCode(...header);
+
+        if (pdfSignature !== "%PDF-") {
+          throw new Error(
+            "Le fichier ne semble pas être un PDF valide."
+          );
+        }
+
+        const safeName = file.name
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-zA-Z0-9._-]/g, "-")
+          .replace(/-+/g, "-")
+          .replace(/^-+|-+$/g, "");
+
+        const storagePath =
+          `cv/${Date.now()}-${safeName || "nouveau-cv.pdf"}`;
+
+        const { data: uploadData, error: uploadError } =
+          await window.supabaseClient.storage
+            .from("portfolio-files")
+            .upload(storagePath, file, {
+              cacheControl: "3600",
+              upsert: false,
+              contentType: "application/pdf"
+            });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        if (!uploadData?.path) {
+          throw new Error(
+            "L'importation n'a pas retourné le chemin du fichier."
+          );
+        }
+
+        const { data: publicData } =
+          window.supabaseClient.storage
+            .from("portfolio-files")
+            .getPublicUrl(uploadData.path);
+
+        const publicUrl = publicData?.publicUrl;
+
+        if (!publicUrl) {
+          throw new Error(
+            "Impossible de récupérer l'URL publique du PDF."
+          );
+        }
+
+        // Vérifier l'accès public avant de changer le champ du CMS.
+        const response = await fetch(publicUrl, {
+          method: "GET",
+          headers: { Range: "bytes=0-4" }
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            "Le PDF a été importé, mais son URL publique n'est pas accessible. " +
+            "Vérifie que le bucket portfolio-files est public."
+          );
+        }
+
+        const returnedHeader = new Uint8Array(
+          await response.arrayBuffer()
+        );
+
+        const returnedSignature = String.fromCharCode(
+          ...returnedHeader.slice(0, 5)
+        );
+
+        if (returnedSignature !== "%PDF-") {
+          throw new Error(
+            "Le fichier importé n'a pas pu être vérifié comme un PDF."
+          );
+        }
+
+        // On ne modifie que l'état local : la publication
+        // reste déclenchée par le bouton Enregistrer.
+        input.value = publicUrl;
+        setPathValue(currentData, path, publicUrl);
+        updatePreview();
+
+        showStatus(
+          "CV importé et accessible. Clique sur « Enregistrer » pour publier le nouveau lien."
+        );
+      } catch (error) {
+        console.error("Erreur d'importation du CV :", error);
+
+        showStatus(
+          error?.message ||
+            "Échec de l'importation. Vérifie les droits Supabase et la connexion.",
+          "error"
+        );
+      } finally {
+        uploadButton.disabled = false;
+        uploadButton.textContent = "⬆ Importer le nouveau CV";
+      }
+    });
+
+    cvManager.append(cvTitle, cvHelp, fileInput, uploadButton);
+    wrapper.appendChild(cvManager);
+  }
 
   if (preview) {
     wrapper.appendChild(preview);
@@ -485,7 +656,6 @@ function createPrimitiveField(value, path, options = {}) {
 
   return wrapper;
 }
-
 /* =========================================================
    OBJET MULTILINGUE FR / EN
 ========================================================= */
