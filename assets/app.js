@@ -341,7 +341,11 @@ const card = project => {
     : [];
 
   return `
-    <a class="card rv" href="#/realisations/${project.id}">
+    <a
+      class="card rv"
+      href="#/realisations/${project.id}"
+      data-categories="${categories.join(" ")}"
+    >
       <span class="tag">
         ${categories.map(cat).join(" · ")}
       </span>
@@ -1445,12 +1449,64 @@ const pages = {
   }
 
 };
+/* =========================================================
+   MODE ONE-PAGE — TOUTES LES RUBRIQUES SUR UNE PAGE
+========================================================= */
 
-function render() {
+function buildOnePage() {
+  const sections = [
+    ["home", pages.home()],
+    ["parcours", pages.parcours()],
+    ["expertises", pages.expertises()],
+    ["realisations", pages.realisations("")],
+    ["recherche", pages.recherche()],
+    ["forma-lab", pages["forma-lab"]()],
+    ["contact", pages.contact()]
+  ];
 
-  const hash =
-    location.hash
-      .replace(/^#\/?/, "");
+  return sections.map(([id, content]) => `
+    <div
+      id="section-${id}"
+      class="onepage-anchor"
+      data-section="${id}"
+      style="scroll-margin-top: 100px;"
+    >
+      ${content}
+    </div>
+  `).join("");
+}
+function render(event) {
+  const currentHash = location.hash;
+
+  // Si l'utilisateur clique sur une ancre déjà présente,
+  // on laisse le navigateur effectuer le défilement.
+  if (
+    event?.type === "hashchange" &&
+    currentHash.startsWith("#section-") &&
+    document.getElementById(currentHash.slice(1))
+  ) {
+    const activeSection =
+      currentHash.slice("#section-".length);
+
+    document.querySelectorAll("#mn a").forEach(link => {
+      link.classList.toggle(
+        "on",
+        link.dataset.section === activeSection
+      );
+    });
+
+    document.getElementById(currentHash.slice(1))?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+
+    return;
+  }
+
+  const isAnchorHash =
+    currentHash.startsWith("#section-");
+
+  const hash = currentHash.replace(/^#\/?/, "");
 
   const parts =
     hash.split("/");
@@ -1460,6 +1516,10 @@ function render() {
 
   const argument =
     parts[1] || "";
+
+  const activeKey = isAnchorHash
+    ? currentHash.slice("#section-".length)
+    : (R.includes(key) ? key : "home");
 
   const main =
     document.getElementById("main");
@@ -1496,7 +1556,7 @@ function render() {
 
       <a
         class="brand"
-        href="#/"
+        href="#section-home"
         aria-label="Accueil"
       >
         ${T(P.name)}
@@ -1511,8 +1571,9 @@ function render() {
           .map(
             (route, index) => `
               <a
-                href="#/${route}"
-                class="${route === key ? "on" : ""}"
+                href="#section-${route}"
+                data-section="${route}"
+                class="${route === activeKey ? "on" : ""}"
               >
                 ${u("nav")[index]}
               </a>
@@ -1544,23 +1605,56 @@ function render() {
     </div>
   `;
 
-  const page =
-    pages[key] || pages.home;
+    const matchingProject =
+    Array.isArray(D.projects)
+      ? D.projects.find(project => project.id === argument)
+      : null;
 
-  main.innerHTML =
-    page(argument);
+  // Les détails d'un projet restent accessibles.
+  // La navigation normale affiche toutes les rubriques.
+  const isProjectDetail =
+    key === "realisations" &&
+    Boolean(argument) &&
+    !argument.startsWith("f:") &&
+    Boolean(matchingProject);
 
-  const routeIndex =
-    R.indexOf(key);
+  main.innerHTML = isProjectDetail
+    ? pages.realisations(argument)
+    : buildOnePage();
 
-  document.title =
-    key === "home"
-      ? "Abdelaziz Talhaoui | Ingénierie de formation & ingénierie pédagogique"
-      : `${
-          routeIndex >= 0
-            ? u("nav")[routeIndex]
-            : P.name
-        } | ${P.name}`;
+  // Conserver le fonctionnement des filtres de projets.
+  const activeFilter =
+    key === "realisations" && argument.startsWith("f:")
+      ? argument.slice(2)
+      : "";
+
+  document
+    .querySelectorAll("#section-realisations .filters button")
+    .forEach(button => {
+      button.classList.toggle(
+        "on",
+        button.dataset.f === activeFilter
+      );
+    });
+
+  document
+    .querySelectorAll("#section-realisations #pg .card")
+    .forEach(projectCard => {
+      const categories =
+        (projectCard.dataset.categories || "").split(/\s+/).filter(Boolean);
+
+      projectCard.hidden =
+        Boolean(activeFilter) &&
+        !categories.includes(activeFilter);
+    });
+
+  const routeIndex = R.indexOf(activeKey);
+
+  document.title = isProjectDetail
+    ? `${T(matchingProject.title)} | ${P.name}`
+    : routeIndex >= 0
+      ? `${u("nav")[routeIndex]} | ${P.name}`
+      : "Abdelaziz Talhaoui | Ingénierie de formation & ingénierie pédagogique";
 
   foot.innerHTML = `
     <div class="w footer-inner">
@@ -1836,10 +1930,25 @@ function render() {
 
   }
 
-  window.scrollTo({
-    top: 0,
-    behavior: "instant"
-  });
+  const targetId = isProjectDetail
+    ? null
+    : isAnchorHash
+      ? currentHash.slice(1)
+      : `section-${activeKey}`;
+
+  if (targetId) {
+    requestAnimationFrame(() => {
+      document.getElementById(targetId)?.scrollIntoView({
+        behavior: currentHash ? "smooth" : "auto",
+        block: "start"
+      });
+    });
+  } else {
+    window.scrollTo({
+      top: 0,
+      behavior: "auto"
+    });
+  }
 }
 
 window.addEventListener(
