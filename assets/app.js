@@ -1775,7 +1775,30 @@ function render(event) {
       if (error) {
         throw error;
       }
-
+// Envoyer une notification par e-mail après l'enregistrement
+try {
+  if (
+    window.emailjs &&
+    typeof window.emailjs.send === "function"
+  ) {
+    await window.emailjs.send(
+      "service_z5k73db",
+      "template_7fv5xgq",
+      {
+        name: String(formData.get("name") || "").trim(),
+        email: String(formData.get("email") || "").trim(),
+        phone: String(formData.get("phone") || "").trim(),
+        organization: String(formData.get("organization") || "").trim(),
+        request_type: String(formData.get("request-type") || "").trim(),
+        message: String(formData.get("message") || "").trim()
+      }
+    );
+  } else {
+    console.error("EmailJS n'est pas disponible.");
+  }
+} catch (emailError) {
+  console.error("Notification e-mail non envoyée :", emailError);
+}
       contactForm.reset();
 
       if (status) {
