@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -32,7 +33,7 @@
       border-radius: 14px;
       padding: 24px;
       margin-bottom: 20px;
-      box-shadow: 0 8px 30px rgba(0,0,0,.04);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, .04);
     }
 
     h1,
@@ -126,11 +127,54 @@
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
+      align-items: center;
     }
 
     #sections {
       display: grid;
       gap: 20px;
+    }
+
+    /* AJOUT : bouton du portfolio */
+    .portfolio-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 11px 16px;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font: inherit;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background .2s ease;
+    }
+
+    .portfolio-link:hover {
+      background: #dbeafe;
+    }
+
+    .portfolio-link:focus-visible {
+      outline: 2px solid #2563eb;
+      outline-offset: 3px;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        width: 94%;
+        margin: 20px auto;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .actions {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -146,6 +190,18 @@
 
       <p class="muted">
         Gestion du contenu du portfolio
+      </p>
+
+      <!-- AJOUT : lien vers le portfolio public -->
+      <p>
+        <a
+          class="portfolio-link"
+          href="https://abdelaziz-talhaoui-portfolio.a-talhaouipro.workers.dev/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          ↗ Voir mon portfolio
+        </a>
       </p>
 
       <form id="loginForm">
@@ -185,7 +241,6 @@
 
     </section>
 
-
     <!-- ADMIN -->
     <section id="adminSection" class="hidden">
 
@@ -201,6 +256,16 @@
 
         <div class="actions">
 
+          <!-- AJOUT : lien vers le portfolio public -->
+          <a
+            class="portfolio-link"
+            href="https://abdelaziz-talhaoui-portfolio.a-talhaouipro.workers.dev/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            ↗ Voir mon portfolio
+          </a>
+
           <button
             id="logoutBtn"
             class="danger"
@@ -213,13 +278,11 @@
 
       </div>
 
-
       <div id="sections"></div>
 
     </section>
 
   </main>
-
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -229,4 +292,3 @@
 
 </body>
 </html>
-
