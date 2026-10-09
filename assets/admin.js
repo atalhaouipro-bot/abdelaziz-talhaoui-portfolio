@@ -1,6 +1,8 @@
 /* =========================================================
    ADMIN CMS — ABDELAZIZ TALHAOUI
-   Version finale — Supabase + interface structurée
+   Version sécurisée — Supabase + interface structurée
+   Protection des modifications non enregistrées
+   Sauvegarde contrôlée — Données existantes préservées
 ========================================================= */
 
 const SECTION_LABELS = {
@@ -21,7 +23,7 @@ const SECTION_LABELS = {
 
 const FIELD_LABELS = {
   name: "Nom",
-  title: "Titre professionnel",
+  title: "Titre",
   tagline: "Accroche",
   sub: "Présentation courte",
   about: "Présentation / À propos",
@@ -34,7 +36,6 @@ const FIELD_LABELS = {
   projects: "Projets",
   achievements: "Réalisations",
   impact: "Impact",
-  title: "Titre",
   description: "Description",
   education: "Formation",
   status: "Statut",
@@ -65,10 +66,78 @@ const FIELD_LABELS = {
   lang: "Langue"
 };
 
+/* =========================================================
+   ÉTAT DU CMS
+========================================================= */
+
 let currentData = {};
 let currentSection = null;
 let currentUser = null;
 
+// Copie de référence du contenu chargé ou enregistré.
+const savedSnapshots = new Map();
+
+// Empêche plusieurs sauvegardes simultanées de la même section.
+const savingSections = new Set();
+
+// Évite les doubles initialisations.
+let adminInitialized = false;
+
+/* =========================================================
+   PROTECTION DES MODIFICATIONS NON ENREGISTRÉES
+========================================================= */
+
+function snapshot(value) {
+  return JSON.stringify(value);
+}
+
+function isDirty(section = currentSection) {
+  if (!section || !(section in currentData)) {
+    return false;
+  }
+
+  return (
+    savedSnapshots.get(section) !==
+    snapshot(currentData[section])
+  );
+}
+
+function hasUnsavedChanges() {
+  return Object.keys(currentData).some(section =>
+    isDirty(section)
+  );
+}
+
+function confirmDiscard(section = currentSection) {
+  if (!isDirty(section)) {
+    return true;
+  }
+
+  return window.confirm(
+    "Cette section contient des modifications non enregistrées.\n\n" +
+    "Veux-tu vraiment continuer sans les enregistrer ?"
+  );
+}
+
+function confirmLeaveAdmin() {
+  if (!hasUnsavedChanges()) {
+    return true;
+  }
+
+  return window.confirm(
+    "Certaines sections contiennent des modifications non enregistrées.\n\n" +
+    "Si tu te déconnectes, ces modifications en mémoire seront perdues.\n\n" +
+    "Veux-tu vraiment te déconnecter ?"
+  );
+}
+
+// Avertissement du navigateur avant de quitter ou d'actualiser.
+window.addEventListener("beforeunload", event => {
+  if (hasUnsavedChanges()) {
+    event.preventDefault();
+    event.returnValue = "";
+  }
+});
 
 /* =========================================================
    UTILITAIRES
@@ -79,9 +148,11 @@ function clone(value) {
 }
 
 function isObject(value) {
-  return value !== null &&
+  return (
+    value !== null &&
     typeof value === "object" &&
-    !Array.isArray(value);
+    !Array.isArray(value)
+  );
 }
 
 function isPrimitive(value) {
@@ -102,25 +173,21 @@ function labelize(key) {
     .replace(/([A-Z])/g, " $1")
     .replace(/_/g, " ")
     .replace(/-/g, " ")
-    .replace(/^./, c => c.toUpperCase());
+    .replace(/^./, character => character.toUpperCase());
 }
 
 function languageLabel(key) {
   if (key === "fr") return "🇫🇷 Français";
   if (key === "en") return "🇬🇧 English";
+
   return null;
 }
 
 function showStatus(message, type = "success") {
-
-  let box =
-    document.getElementById("globalStatus");
+  let box = document.getElementById("globalStatus");
 
   if (!box) {
-
-    box =
-      document.createElement("div");
-
+    box = document.createElement("div");
     box.id = "globalStatus";
 
     Object.assign(box.style, {
@@ -142,95 +209,65 @@ function showStatus(message, type = "success") {
   box.textContent = message;
 
   box.style.background =
-    type === "error"
-      ? "#fee2e2"
-      : "#dcfce7";
+    type === "error" ? "#fee2e2" : "#dcfce7";
 
   box.style.color =
-    type === "error"
-      ? "#991b1b"
-      : "#166534";
+    type === "error" ? "#991b1b" : "#166534";
 
   clearTimeout(box._timer);
 
-  box._timer =
-    setTimeout(() => {
-      box.remove();
-    }, 3500);
+  box._timer = setTimeout(() => {
+    box.remove();
+  }, 4500);
 }
 
-
 /* =========================================================
-   PATH
+   GESTION DES CHEMINS
 ========================================================= */
 
 function parsePath(path) {
-
-  return path
-    .split(".")
-    .map(part =>
-      /^\d+$/.test(part)
-        ? Number(part)
-        : part
-    );
+  return path.split(".").map(part =>
+    /^\d+$/.test(part) ? Number(part) : part
+  );
 }
 
 function setPathValue(obj, path, value) {
-
-  const parts =
-    parsePath(path);
-
+  const parts = parsePath(path);
   let target = obj;
 
-  for (
-    let i = 0;
-    i < parts.length - 1;
-    i++
-  ) {
-    target =
-      target[parts[i]];
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (target == null) {
+      throw new Error("Chemin de données invalide : " + path);
+    }
+
+    target = target[parts[i]];
   }
 
-  target[
-    parts[parts.length - 1]
-  ] = value;
-}
+  if (target == null) {
+    throw new Error("Champ introuvable : " + path);
+  }
 
+  target[parts[parts.length - 1]] = value;
+}
 
 /* =========================================================
    CHAMP PRIMITIF
 ========================================================= */
 
-function createPrimitiveField(
-  value,
-  path,
-  options = {}
-) {
+function createPrimitiveField(value, path, options = {}) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "cms-field";
 
-  const wrapper =
-    document.createElement("div");
+  const key = path.split(".").pop();
 
-  wrapper.className =
-    "cms-field";
+  const label = document.createElement("label");
+  label.textContent = options.label || labelize(key);
 
-  const key =
-    path.split(".").pop();
-
-  const label =
-    document.createElement("label");
-
-  label.textContent =
-    options.label ||
-    labelize(key);
-
-  label.style.display =
-    "block";
-
-  label.style.fontWeight =
-    "600";
-
-  label.style.color =
-    "#374151";
+  Object.assign(label.style, {
+    display: "block",
+    fontWeight: "600",
+    color: "#374151"
+  });
 
   let input;
 
@@ -239,51 +276,29 @@ function createPrimitiveField(
     String(value ?? "").length > 180;
 
   if (typeof value === "boolean") {
+    input = document.createElement("select");
 
-    input =
-      document.createElement("select");
-
-    const yes =
-      document.createElement("option");
-
+    const yes = document.createElement("option");
     yes.value = "true";
     yes.textContent = "Oui";
 
-    const no =
-      document.createElement("option");
-
+    const no = document.createElement("option");
     no.value = "false";
     no.textContent = "Non";
 
     input.append(yes, no);
-
-    input.value =
-      String(value);
-
+    input.value = String(value);
   } else if (isLong) {
-
-    input =
-      document.createElement("textarea");
-
+    input = document.createElement("textarea");
     input.rows = 5;
-
-    input.value =
-      value ?? "";
-
+    input.value = value ?? "";
   } else {
-
-    input =
-      document.createElement("input");
-
-    input.type =
-      "text";
-
-    input.value =
-      value ?? "";
+    input = document.createElement("input");
+    input.type = "text";
+    input.value = value ?? "";
   }
 
-  input.dataset.path =
-    path;
+  input.dataset.path = path;
 
   Object.assign(input.style, {
     width: "100%",
@@ -297,44 +312,57 @@ function createPrimitiveField(
     background: "#fff"
   });
 
-  input.addEventListener(
-    "input",
-    () => {
+  const updateValue = () => {
+    let nextValue = input.value;
 
-      setPathValue(
-        currentData,
-        path,
-        typeof value === "boolean"
-          ? input.value === "true"
-          : input.value
+    if (typeof value === "boolean") {
+      nextValue = input.value === "true";
+    } else if (typeof value === "number") {
+      if (nextValue.trim() === "") {
+        showStatus(
+          "Ce champ doit contenir un nombre.",
+          "error"
+        );
+        return;
+      }
+
+      nextValue = Number(nextValue);
+
+      if (!Number.isFinite(nextValue)) {
+        showStatus(
+          "Valeur numérique invalide.",
+          "error"
+        );
+        return;
+      }
+    }
+
+    try {
+      setPathValue(currentData, path, nextValue);
+    } catch (error) {
+      console.error(error);
+      showStatus(
+        "Impossible de modifier ce champ.",
+        "error"
       );
     }
-  );
+  };
 
-  wrapper.append(
-    label,
-    input
-  );
+  input.addEventListener("input", updateValue);
+  input.addEventListener("change", updateValue);
+
+  wrapper.append(label, input);
 
   return wrapper;
 }
-
 
 /* =========================================================
    OBJET MULTILINGUE FR / EN
 ========================================================= */
 
-function renderLanguageObject(
-  obj,
-  path,
-  title
-) {
-
-  const container =
-    document.createElement("div");
-
-  container.className =
-    "cms-language-group";
+function renderLanguageObject(obj, path, title) {
+  const container = document.createElement("div");
+  container.className = "cms-language-group";
 
   Object.assign(container.style, {
     border: "1px solid #e5e7eb",
@@ -345,12 +373,8 @@ function renderLanguageObject(
   });
 
   if (title) {
-
-    const heading =
-      document.createElement("h3");
-
-    heading.textContent =
-      title;
+    const heading = document.createElement("h3");
+    heading.textContent = title;
 
     Object.assign(heading.style, {
       margin: "0 0 18px",
@@ -358,22 +382,15 @@ function renderLanguageObject(
       color: "#111827"
     });
 
-    container.appendChild(
-      heading
-    );
+    container.appendChild(heading);
   }
 
   ["fr", "en"].forEach(lang => {
+    if (!Object.prototype.hasOwnProperty.call(obj, lang)) {
+      return;
+    }
 
-    if (
-      !Object.prototype.hasOwnProperty.call(
-        obj,
-        lang
-      )
-    ) return;
-
-    const languageBox =
-      document.createElement("div");
+    const languageBox = document.createElement("div");
 
     Object.assign(languageBox.style, {
       background: "#fff",
@@ -383,11 +400,8 @@ function renderLanguageObject(
       marginBottom: "12px"
     });
 
-    const languageTitle =
-      document.createElement("div");
-
-    languageTitle.textContent =
-      languageLabel(lang);
+    const languageTitle = document.createElement("div");
+    languageTitle.textContent = languageLabel(lang);
 
     Object.assign(languageTitle.style, {
       fontWeight: "700",
@@ -395,58 +409,35 @@ function renderLanguageObject(
       color: "#111827"
     });
 
-    languageBox.appendChild(
-      languageTitle
+    languageBox.appendChild(languageTitle);
+
+    const value = obj[lang];
+
+    const field = createPrimitiveField(
+      value,
+      `${path}.${lang}`,
+      {
+        label: lang === "fr" ? "Français" : "English",
+        long: String(value ?? "").length > 120
+      }
     );
 
-    const value =
-      obj[lang];
-
-    const field =
-      createPrimitiveField(
-        value,
-        `${path}.${lang}`,
-        {
-          label:
-            lang === "fr"
-              ? "Français"
-              : "English",
-          long:
-            String(value ?? "").length > 120
-        }
-      );
-
-    languageBox.appendChild(
-      field
-    );
-
-    container.appendChild(
-      languageBox
-    );
+    languageBox.appendChild(field);
+    container.appendChild(languageBox);
   });
 
   return container;
 }
 
-
 /* =========================================================
    TABLEAU DE CHAÎNES
 ========================================================= */
 
-function renderStringArray(
-  array,
-  path,
-  title
-) {
+function renderStringArray(array, path, title) {
+  const container = document.createElement("div");
+  container.className = "cms-array";
 
-  const container =
-    document.createElement("div");
-
-  container.className =
-    "cms-array";
-
-  const header =
-    document.createElement("div");
+  const header = document.createElement("div");
 
   Object.assign(header.style, {
     display: "flex",
@@ -455,143 +446,87 @@ function renderStringArray(
     marginBottom: "12px"
   });
 
-  const h =
-    document.createElement("h3");
+  const heading = document.createElement("h3");
+  heading.textContent = `${title} (${array.length})`;
+  heading.style.margin = "0";
 
-  h.textContent =
-    `${title} (${array.length})`;
-
-  h.style.margin =
-    "0";
-
-  const add =
-    document.createElement("button");
-
-  add.type =
-    "button";
-
-  add.textContent =
-    "+ Ajouter";
-
-  add.className =
-    "secondary";
+  const add = document.createElement("button");
+  add.type = "button";
+  add.textContent = "+ Ajouter";
+  add.className = "secondary";
 
   add.onclick = () => {
-
     array.push("");
-
     renderCurrentSection();
   };
 
-  header.append(
-    h,
-    add
-  );
+  header.append(heading, add);
+  container.appendChild(header);
 
-  container.appendChild(
-    header
-  );
+  array.forEach((item, index) => {
+    const row = document.createElement("div");
 
-  array.forEach(
-    (item, index) => {
+    Object.assign(row.style, {
+      display: "flex",
+      gap: "8px",
+      marginBottom: "10px",
+      alignItems: "flex-start"
+    });
 
-      const row =
-        document.createElement("div");
+    const input = document.createElement("textarea");
+    input.rows = 2;
+    input.value = item ?? "";
 
-      Object.assign(row.style, {
-        display: "flex",
-        gap: "8px",
-        marginBottom: "10px",
-        alignItems: "flex-start"
-      });
+    Object.assign(input.style, {
+      flex: "1",
+      padding: "10px",
+      border: "1px solid #d1d5db",
+      borderRadius: "8px",
+      font: "inherit",
+      resize: "vertical"
+    });
 
-      const input =
-        document.createElement("textarea");
+    input.oninput = () => {
+      array[index] = input.value;
+    };
 
-      input.rows = 2;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "×";
+    remove.className = "danger";
+    remove.title = "Supprimer";
 
-      input.value =
-        item;
+    remove.onclick = () => {
+      if (
+        !window.confirm(
+          "Supprimer cet élément de la liste ?"
+        )
+      ) {
+        return;
+      }
 
-      Object.assign(input.style, {
-        flex: "1",
-        padding: "10px",
-        border: "1px solid #d1d5db",
-        borderRadius: "8px",
-        font: "inherit",
-        resize: "vertical"
-      });
+      array.splice(index, 1);
+      renderCurrentSection();
+    };
 
-      input.oninput =
-        () => {
-          array[index] =
-            input.value;
-        };
-
-      const remove =
-        document.createElement("button");
-
-      remove.type =
-        "button";
-
-      remove.textContent =
-        "×";
-
-      remove.className =
-        "danger";
-
-      remove.title =
-        "Supprimer";
-
-      remove.onclick =
-        () => {
-
-          array.splice(
-            index,
-            1
-          );
-
-          renderCurrentSection();
-        };
-
-      row.append(
-        input,
-        remove
-      );
-
-      container.appendChild(
-        row
-      );
-    }
-  );
+    row.append(input, remove);
+    container.appendChild(row);
+  });
 
   return container;
 }
-
 
 /* =========================================================
    OBJET
 ========================================================= */
 
-function renderObject(
-  obj,
-  path,
-  title = ""
-) {
-
-  const container =
-    document.createElement("div");
-
-  container.className =
-    "cms-object";
+function renderObject(obj, path, title = "") {
+  const container = document.createElement("div");
+  container.className = "cms-object";
 
   if (title) {
-
-    const heading =
-      document.createElement("h3");
-
-    heading.textContent =
-      title;
+    const heading = document.createElement("h3");
+    heading.textContent = title;
 
     Object.assign(heading.style, {
       marginTop: "0",
@@ -600,155 +535,91 @@ function renderObject(
       color: "#111827"
     });
 
-    container.appendChild(
-      heading
-    );
+    container.appendChild(heading);
   }
 
-  Object.keys(obj)
-    .forEach(key => {
+  Object.keys(obj).forEach(key => {
+    const value = obj[key];
 
-      const value =
-        obj[key];
+    const childPath = path
+      ? `${path}.${key}`
+      : key;
 
-      const childPath =
-        path
-          ? `${path}.${key}`
-          : key;
+    // Objet bilingue FR / EN
+    if (
+      isObject(value) &&
+      (
+        Object.prototype.hasOwnProperty.call(value, "fr") ||
+        Object.prototype.hasOwnProperty.call(value, "en")
+      ) &&
+      Object.keys(value).every(k => k === "fr" || k === "en")
+    ) {
+      container.appendChild(
+        renderLanguageObject(value, childPath, labelize(key))
+      );
 
-      /* FR / EN */
-      if (
-        isObject(value) &&
-        (
-          Object.prototype.hasOwnProperty.call(
-            value,
-            "fr"
-          ) ||
-          Object.prototype.hasOwnProperty.call(
-            value,
-            "en"
-          )
-        ) &&
-        Object.keys(value)
-          .every(k =>
-            k === "fr" ||
-            k === "en"
-          )
-      ) {
+      return;
+    }
 
+    // Valeur simple
+    if (isPrimitive(value)) {
+      container.appendChild(
+        createPrimitiveField(value, childPath)
+      );
+
+      return;
+    }
+
+    // Tableau
+    if (Array.isArray(value)) {
+      if (value.every(item => isPrimitive(item))) {
         container.appendChild(
-          renderLanguageObject(
-            value,
-            childPath,
-            labelize(key)
-          )
+          renderStringArray(value, childPath, labelize(key))
         );
-
-        return;
-      }
-
-      /* Primitive */
-      if (
-        isPrimitive(value)
-      ) {
-
+      } else {
         container.appendChild(
-          createPrimitiveField(
-            value,
-            childPath
-          )
-        );
-
-        return;
-      }
-
-      /* Array */
-      if (
-        Array.isArray(value)
-      ) {
-
-        if (
-          value.every(
-            item =>
-              isPrimitive(item)
-          )
-        ) {
-
-          container.appendChild(
-            renderStringArray(
-              value,
-              childPath,
-              labelize(key)
-            )
-          );
-
-        } else {
-
-          container.appendChild(
-            renderComplexArray(
-              value,
-              childPath,
-              labelize(key)
-            )
-          );
-        }
-
-        return;
-      }
-
-      /* Objet imbriqué */
-      if (
-        isObject(value)
-      ) {
-
-        const group =
-          document.createElement("div");
-
-        Object.assign(group.style, {
-          border: "1px solid #e5e7eb",
-          borderRadius: "10px",
-          padding: "18px",
-          marginBottom: "18px",
-          background: "#fafafa"
-        });
-
-        group.appendChild(
-          renderObject(
-            value,
-            childPath,
-            labelize(key)
-          )
-        );
-
-        container.appendChild(
-          group
+          renderComplexArray(value, childPath, labelize(key))
         );
       }
-    });
+
+      return;
+    }
+
+    // Objet imbriqué
+    if (isObject(value)) {
+      const group = document.createElement("div");
+
+      Object.assign(group.style, {
+        border: "1px solid #e5e7eb",
+        borderRadius: "10px",
+        padding: "18px",
+        marginBottom: "18px",
+        background: "#fafafa"
+      });
+
+      group.appendChild(
+        renderObject(value, childPath, labelize(key))
+      );
+
+      container.appendChild(group);
+    }
+  });
 
   return container;
 }
-
 
 /* =========================================================
    TABLEAU COMPLEXE
 ========================================================= */
 
-function renderComplexArray(
-  array,
-  path,
-  title
-) {
-
-  const container =
-    document.createElement("div");
+function renderComplexArray(array, path, title) {
+  const container = document.createElement("div");
 
   Object.assign(container.style, {
     marginBottom: "25px"
   });
 
-  const header =
-    document.createElement("div");
+  const header = document.createElement("div");
 
   Object.assign(header.style, {
     display: "flex",
@@ -757,251 +628,154 @@ function renderComplexArray(
     marginBottom: "12px"
   });
 
-  const titleElement =
-    document.createElement("h3");
+  const titleElement = document.createElement("h3");
+  titleElement.textContent = `${title} (${array.length})`;
+  titleElement.style.margin = "0";
 
-  titleElement.textContent =
-    `${title} (${array.length})`;
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "secondary";
+  add.textContent = "+ Ajouter";
 
-  titleElement.style.margin =
-    "0";
+  add.onclick = () => {
+    let template = {};
 
-  const add =
-    document.createElement("button");
+    if (array.length > 0) {
+      template = clone(array[0]);
 
-  add.type =
-    "button";
+      if (isObject(template)) {
+        clearObjectValues(template);
+      } else if (Array.isArray(template)) {
+        template = [];
+      } else if (typeof template === "boolean") {
+        template = false;
+      } else {
+        template = "";
+      }
+    }
 
-  add.className =
-    "secondary";
+    array.push(template);
+    renderCurrentSection();
+  };
 
-  add.textContent =
-    "+ Ajouter";
+  header.append(titleElement, add);
+  container.appendChild(header);
 
-  add.onclick =
-    () => {
+  array.forEach((item, index) => {
+    const card = document.createElement("div");
 
-      let template = {};
+    Object.assign(card.style, {
+      border: "1px solid #e5e7eb",
+      borderRadius: "12px",
+      padding: "20px",
+      marginBottom: "15px",
+      background: "#fff"
+    });
 
+    const cardHeader = document.createElement("div");
+
+    Object.assign(cardHeader.style, {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "15px"
+    });
+
+    const number = document.createElement("strong");
+    number.textContent = `${title} — ${index + 1}`;
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "danger";
+    remove.textContent = "Supprimer";
+
+    remove.onclick = () => {
       if (
-        array.length > 0
+        !window.confirm(
+          "Supprimer cet élément de l'éditeur ?"
+        )
       ) {
-
-        template =
-          clone(array[0]);
-
-        clearObjectValues(
-          template
-        );
+        return;
       }
 
-      array.push(
-        template
-      );
-
+      array.splice(index, 1);
       renderCurrentSection();
     };
 
-  header.append(
-    titleElement,
-    add
-  );
+    cardHeader.append(number, remove);
+    card.appendChild(cardHeader);
 
-  container.appendChild(
-    header
-  );
-
-  array.forEach(
-    (item, index) => {
-
-      const card =
-        document.createElement("div");
-
-      Object.assign(card.style, {
-        border: "1px solid #e5e7eb",
-        borderRadius: "12px",
-        padding: "20px",
-        marginBottom: "15px",
-        background: "#fff"
-      });
-
-      const cardHeader =
-        document.createElement("div");
-
-      Object.assign(cardHeader.style, {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "15px"
-      });
-
-      const number =
-        document.createElement("strong");
-
-      number.textContent =
-        `${title} — ${index + 1}`;
-
-      const remove =
-        document.createElement("button");
-
-      remove.type =
-        "button";
-
-      remove.className =
-        "danger";
-
-      remove.textContent =
-        "Supprimer";
-
-      remove.onclick =
-        () => {
-
-          if (
-            !confirm(
-              "Supprimer définitivement cet élément ?"
-            )
-          ) return;
-
-          array.splice(
-            index,
-            1
-          );
-
-          renderCurrentSection();
-        };
-
-      cardHeader.append(
-        number,
-        remove
-      );
-
+    if (isObject(item)) {
       card.appendChild(
-        cardHeader
+        renderObject(item, `${path}.${index}`)
       );
-
-      if (
-        isObject(item)
-      ) {
-
-        card.appendChild(
-          renderObject(
-            item,
-            `${path}.${index}`
-          )
-        );
-
-      } else {
-
-        card.appendChild(
-          createPrimitiveField(
-            item,
-            `${path}.${index}`
-          )
-        );
-      }
-
-      container.appendChild(
-        card
+    } else if (Array.isArray(item)) {
+      card.appendChild(
+        renderComplexArray(item, `${path}.${index}`, `${title} — ${index + 1}`)
+      );
+    } else {
+      card.appendChild(
+        createPrimitiveField(item, `${path}.${index}`)
       );
     }
-  );
+
+    container.appendChild(card);
+  });
 
   return container;
 }
 
-
 /* =========================================================
-   NETTOYAGE NOUVEL ÉLÉMENT
+   NETTOYAGE D'UN NOUVEL ÉLÉMENT
 ========================================================= */
 
-function clearObjectValues(
-  obj
-) {
-
-  Object.keys(obj)
-    .forEach(key => {
-
-      if (
-        Array.isArray(obj[key])
-      ) {
-
-        obj[key] = [];
-
-      } else if (
-        isObject(obj[key])
-      ) {
-
-        clearObjectValues(
-          obj[key]
-        );
-
-      } else if (
-        typeof obj[key] === "boolean"
-      ) {
-
-        obj[key] = false;
-
-      } else {
-
-        obj[key] = "";
-      }
-    });
+function clearObjectValues(obj) {
+  Object.keys(obj).forEach(key => {
+    if (Array.isArray(obj[key])) {
+      obj[key] = [];
+    } else if (isObject(obj[key])) {
+      clearObjectValues(obj[key]);
+    } else if (typeof obj[key] === "boolean") {
+      obj[key] = false;
+    } else if (typeof obj[key] === "number") {
+      obj[key] = 0;
+    } else {
+      obj[key] = "";
+    }
+  });
 
   return obj;
 }
 
-
 /* =========================================================
-   SECTION
+   AFFICHAGE D'UNE SECTION
 ========================================================= */
 
-function renderSection(
-  section
-) {
+function renderSection(section) {
+  const container = document.getElementById("sectionEditor");
 
-  const container =
-    document.getElementById(
-      "sectionEditor"
-    );
+  if (!container) return;
 
-  if (!container)
-    return;
+  container.innerHTML = "";
 
-  container.innerHTML =
-    "";
+  const data = currentData[section];
 
-  const data =
-    currentData[section];
-
-  if (
-    data === undefined
-  ) {
-
-    container.innerHTML =
-      "<p>Cette section est introuvable.</p>";
-
+  if (data === undefined) {
+    container.textContent = "Cette section est introuvable.";
     return;
   }
 
-  const title =
-    document.createElement("h2");
-
-  title.textContent =
-    SECTION_LABELS[section] ||
-    labelize(section);
+  const title = document.createElement("h2");
+  title.textContent = SECTION_LABELS[section] || labelize(section);
 
   Object.assign(title.style, {
     marginTop: "0",
     marginBottom: "8px"
   });
 
-  container.appendChild(
-    title
-  );
+  container.appendChild(title);
 
-  const description =
-    document.createElement("p");
-
+  const description = document.createElement("p");
   description.textContent =
     "Modifie les informations puis clique sur « Enregistrer ».";
 
@@ -1010,53 +784,27 @@ function renderSection(
     marginBottom: "25px"
   });
 
-  container.appendChild(
-    description
-  );
+  container.appendChild(description);
 
-  const editor =
-    document.createElement("div");
+  const editor = document.createElement("div");
 
-  if (
-    Array.isArray(data)
-  ) {
-
+  if (Array.isArray(data)) {
     editor.appendChild(
       renderComplexArray(
         data,
         section,
-        SECTION_LABELS[section] ||
-        section
+        SECTION_LABELS[section] || section
       )
     );
-
-  } else if (
-    isObject(data)
-  ) {
-
-    editor.appendChild(
-      renderObject(
-        data,
-        section
-      )
-    );
-
+  } else if (isObject(data)) {
+    editor.appendChild(renderObject(data, section));
   } else {
-
-    editor.appendChild(
-      createPrimitiveField(
-        data,
-        section
-      )
-    );
+    editor.appendChild(createPrimitiveField(data, section));
   }
 
-  container.appendChild(
-    editor
-  );
+  container.appendChild(editor);
 
-  const actions =
-    document.createElement("div");
+  const actions = document.createElement("div");
 
   Object.assign(actions.style, {
     display: "flex",
@@ -1066,694 +814,560 @@ function renderSection(
     borderTop: "1px solid #e5e7eb"
   });
 
-  const save =
-    document.createElement("button");
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "primary";
+  save.textContent = "💾 Enregistrer";
 
-  save.type =
-    "button";
+  save.onclick = () => saveSection(section);
 
-  save.className =
-    "primary";
-
-  save.textContent =
-    "💾 Enregistrer";
-
-  save.onclick =
-    () =>
-      saveSection(section);
-
-  actions.appendChild(
-    save
-  );
-
-  container.appendChild(
-    actions
-  );
+  actions.appendChild(save);
+  container.appendChild(actions);
 }
 
 function renderCurrentSection() {
-
-  if (
-    currentSection
-  ) {
-
-    renderSection(
-      currentSection
-    );
+  if (currentSection) {
+    renderSection(currentSection);
   }
 }
 
-
 /* =========================================================
-   NAVIGATION
+   NAVIGATION — PROTECTION DES MODIFICATIONS
 ========================================================= */
 
 function renderNavigation() {
+  const nav = document.getElementById("sectionNav");
 
-  const nav =
-    document.getElementById(
-      "sectionNav"
-    );
+  if (!nav) return;
 
-  if (!nav)
-    return;
+  nav.innerHTML = "";
 
-  nav.innerHTML =
-    "";
+  Object.keys(SECTION_LABELS).forEach(section => {
+    const button = document.createElement("button");
 
-  Object.keys(
-    SECTION_LABELS
-  ).forEach(
-    section => {
+    button.type = "button";
+    button.textContent = SECTION_LABELS[section];
 
-      const button =
-        document.createElement("button");
+    Object.assign(button.style, {
+      width: "100%",
+      textAlign: "left",
+      padding: "12px 14px",
+      border: "0",
+      borderRadius: "8px",
+      background:
+        section === currentSection ? "#111827" : "transparent",
+      color:
+        section === currentSection ? "#fff" : "#374151",
+      cursor: "pointer",
+      marginBottom: "4px",
+      fontWeight:
+        section === currentSection ? "600" : "400"
+    });
 
-      button.type =
-        "button";
+    button.onclick = () => {
+      if (section === currentSection) return;
 
-      button.textContent =
-        SECTION_LABELS[section];
+      if (!confirmDiscard(currentSection)) {
+        return;
+      }
 
-      Object.assign(button.style, {
-        width: "100%",
-        textAlign: "left",
-        padding: "12px 14px",
-        border: "0",
-        borderRadius: "8px",
-        background:
-          section === currentSection
-            ? "#111827"
-            : "transparent",
-        color:
-          section === currentSection
-            ? "#fff"
-            : "#374151",
-        cursor: "pointer",
-        marginBottom: "4px",
-        fontWeight:
-          section === currentSection
-            ? "600"
-            : "400"
-      });
+      currentSection = section;
 
-      button.onclick =
-        () => {
+      renderNavigation();
+      renderSection(section);
+    };
 
-          currentSection =
-            section;
-
-          renderNavigation();
-
-          renderSection(
-            section
-          );
-        };
-
-      nav.appendChild(
-        button
-      );
-    }
-  );
+    nav.appendChild(button);
+  });
 }
 
-
 /* =========================================================
-   CHARGEMENT SUPABASE
+   CHARGEMENT SUPABASE — SANS MODIFIER LES DONNÉES
 ========================================================= */
 
 async function loadSections() {
+  showStatus("Chargement du contenu...");
 
-  showStatus(
-    "Chargement du contenu..."
-  );
-
-  const {
-    data,
-    error
-  } =
-    await window.supabaseClient
+  try {
+    const { data, error } = await window.supabaseClient
       .from("site_content")
-      .select(
-        "section, content"
+      .select("section, content");
+
+    if (error) throw error;
+
+    if (!Array.isArray(data)) {
+      throw new Error("Réponse Supabase invalide.");
+    }
+
+    // On remplace uniquement l'état local du navigateur.
+    // Aucune écriture dans Supabase n'est effectuée ici.
+    currentData = {};
+    savedSnapshots.clear();
+
+    data.forEach(row => {
+      currentData[row.section] = clone(row.content);
+
+      savedSnapshots.set(
+        row.section,
+        snapshot(row.content)
       );
+    });
 
-  if (error) {
+    if (!currentSection || !(currentSection in currentData)) {
+      currentSection =
+        "profile" in currentData
+          ? "profile"
+          : Object.keys(currentData)[0] || null;
+    }
 
-    console.error(
-      error
-    );
+    renderNavigation();
+
+    if (currentSection) {
+      renderSection(currentSection);
+    }
+
+    showStatus("Contenu chargé.");
+  } catch (error) {
+    console.error("Erreur de chargement :", error);
 
     showStatus(
-      "Impossible de charger le contenu.",
+      "Impossible de charger le contenu. Vérifie la connexion et les droits d'accès.",
       "error"
     );
+  }
+}
 
+/* =========================================================
+   SAUVEGARDE — CONTRÔLE ET GESTION DES ERREURS
+========================================================= */
+
+async function saveSection(section) {
+  if (savingSections.has(section)) {
     return;
   }
 
-  currentData = {};
-
-  data.forEach(
-    row => {
-
-      currentData[
-        row.section
-      ] =
-        clone(
-          row.content
-        );
-    }
-  );
-
-  if (
-    !currentSection
-  ) {
-
-    currentSection =
-      "profile";
+  if (!(section in currentData)) {
+    showStatus("Section introuvable.", "error");
+    return;
   }
 
-  renderNavigation();
-
-  renderSection(
-    currentSection
+  const button = document.querySelector(
+    "#sectionEditor button.primary"
   );
 
-  showStatus(
-    "Contenu chargé."
-  );
-}
-
-
-/* =========================================================
-   SAUVEGARDE
-========================================================= */
-
-async function saveSection(
-  section
-) {
-
-  const button =
-    document.querySelector(
-      "#sectionEditor button.primary"
-    );
+  savingSections.add(section);
 
   if (button) {
-
-    button.disabled =
-      true;
-
-    button.textContent =
-      "⏳ Enregistrement...";
+    button.disabled = true;
+    button.textContent = "⏳ Enregistrement...";
   }
 
   try {
+    // Copie exacte de ce qui sera envoyé.
+    const contentToSave = clone(currentData[section]);
 
-    const {
-      error
-    } =
-      await window.supabaseClient
-        .from("site_content")
-        .update({
-          content:
-            currentData[section]
-        })
-        .eq(
-          "section",
-          section
-        );
+    const { data, error } = await window.supabaseClient
+      .from("site_content")
+      .update({
+        content: contentToSave
+      })
+      .eq("section", section)
+      .select("section");
 
-    if (error)
+    if (error) {
       throw error;
+    }
 
-    showStatus(
-      `✅ ${
-        SECTION_LABELS[section] ||
-        section
-      } enregistré.`
+    // On attend exactement une ligne mise à jour.
+    if (!data || data.length !== 1) {
+      throw new Error(
+        "Aucune ligne mise à jour. Vérifie les droits d'administration et les politiques RLS."
+      );
+    }
+
+    // La référence devient celle de la version envoyée,
+    // et non celle d'éventuelles modifications ultérieures.
+    savedSnapshots.set(
+      section,
+      snapshot(contentToSave)
     );
 
+    if (isDirty(section)) {
+      showStatus(
+        "La version envoyée est enregistrée, mais des modifications supplémentaires restent à sauvegarder.",
+        "error"
+      );
+    } else {
+      showStatus(
+        `✅ ${SECTION_LABELS[section] || section} enregistré.`
+      );
+    }
   } catch (error) {
-
-    console.error(
-      error
-    );
+    console.error("Erreur de sauvegarde :", error);
 
     showStatus(
-      "Erreur lors de l'enregistrement.",
+      "Échec de la sauvegarde. Les modifications restent dans l'éditeur. Vérifie la connexion et les droits avant de réessayer.",
       "error"
     );
-
   } finally {
+    savingSections.delete(section);
 
-    if (button) {
-
-      button.disabled =
-        false;
-
-      button.textContent =
-        "💾 Enregistrer";
+    if (button && button.isConnected) {
+      button.disabled = false;
+      button.textContent = "💾 Enregistrer";
     }
   }
 }
 
-
 /* =========================================================
-   ADMIN
+   VÉRIFICATION DU COMPTE ADMINISTRATEUR
 ========================================================= */
 
 async function checkAdmin() {
+  try {
+    const {
+      data: { session },
+      error: sessionError
+    } = await window.supabaseClient.auth.getSession();
 
-  const {
-    data: {
-      session
+    if (sessionError) {
+      throw sessionError;
     }
-  } =
-    await window.supabaseClient
-      .auth
-      .getSession();
 
-  if (!session) {
+    if (!session) {
+      currentUser = null;
+      showLogin();
+      return;
+    }
 
-    showLogin();
-
-    return;
-  }
-
-  const {
-    data,
-    error
-  } =
-    await window.supabaseClient
+    const { data, error } = await window.supabaseClient
       .from("admin_users")
       .select("user_id")
-      .eq(
-        "user_id",
-        session.user.id
-      )
+      .eq("user_id", session.user.id)
       .maybeSingle();
 
-  if (
-    error ||
-    !data
-  ) {
+    if (error || !data) {
+      await window.supabaseClient.auth.signOut();
 
-    await window.supabaseClient
-      .auth
-      .signOut();
+      currentUser = null;
+      currentData = {};
+      savedSnapshots.clear();
+      currentSection = null;
+
+      showLogin();
+
+      showStatus(
+        "Accès administrateur refusé.",
+        "error"
+      );
+
+      return;
+    }
+
+    currentUser = session.user;
+
+    showAdmin();
+
+    await loadSections();
+  } catch (error) {
+    console.error("Erreur de vérification admin :", error);
 
     showLogin();
 
     showStatus(
-      "Accès administrateur refusé.",
+      "Impossible de vérifier la session. Réessaie après avoir vérifié ta connexion.",
       "error"
     );
-
-    return;
   }
-
-  currentUser =
-    session.user;
-
-  showAdmin();
-
-  await loadSections();
 }
 
 function showLogin() {
+  const login = document.getElementById("loginSection");
+  const admin = document.getElementById("adminSection");
 
-  const login =
-    document.getElementById(
-      "loginSection"
-    );
+  if (login) {
+    login.classList.remove("hidden");
+  }
 
-  const admin =
-    document.getElementById(
-      "adminSection"
-    );
-
-  if (login)
-    login.classList.remove(
-      "hidden"
-    );
-
-  if (admin)
-    admin.classList.add(
-      "hidden"
-    );
+  if (admin) {
+    admin.classList.add("hidden");
+  }
 }
 
 function showAdmin() {
+  const login = document.getElementById("loginSection");
+  const admin = document.getElementById("adminSection");
 
-  const login =
-    document.getElementById(
-      "loginSection"
-    );
+  if (login) {
+    login.classList.add("hidden");
+  }
 
-  const admin =
-    document.getElementById(
-      "adminSection"
-    );
-
-  if (login)
-    login.classList.add(
-      "hidden"
-    );
-
-  if (admin)
-    admin.classList.remove(
-      "hidden"
-    );
+  if (admin) {
+    admin.classList.remove("hidden");
+  }
 }
-
 
 /* =========================================================
    CONNEXION
 ========================================================= */
 
-async function login(
-  email,
-  password
-) {
-
-  const {
-    error
-  } =
-    await window.supabaseClient
-      .auth
+async function login(email, password) {
+  try {
+    const { error } = await window.supabaseClient.auth
       .signInWithPassword({
         email,
         password
       });
 
-  if (error) {
+    if (error) {
+      showStatus(
+        "Connexion impossible. Vérifie tes identifiants.",
+        "error"
+      );
+
+      console.error("Erreur de connexion :", error);
+      return;
+    }
+
+    await checkAdmin();
+  } catch (error) {
+    console.error("Erreur de connexion :", error);
 
     showStatus(
-      error.message,
+      "Une erreur est survenue pendant la connexion.",
       "error"
     );
-
-    return;
   }
-
-  await checkAdmin();
 }
 
-
 /* =========================================================
-   INITIALISATION
+   INITIALISATION DE L'INTERFACE
 ========================================================= */
 
-document.addEventListener(
-  "DOMContentLoaded",
-  () => {
+document.addEventListener("DOMContentLoaded", () => {
+  if (adminInitialized) return;
 
-    const loginForm =
-      document.getElementById(
-        "loginForm"
-      );
+  adminInitialized = true;
 
-    if (loginForm) {
+  const loginForm = document.getElementById("loginForm");
 
-      loginForm.addEventListener(
-        "submit",
-        async event => {
+  if (loginForm) {
+    loginForm.addEventListener("submit", async event => {
+      event.preventDefault();
 
-          event.preventDefault();
+      const email = document
+        .getElementById("email")
+        ?.value
+        .trim();
 
-          const email =
-            document
-              .getElementById(
-                "email"
-              )
-              ?.value
-              .trim();
+      const password = document
+        .getElementById("password")
+        ?.value;
 
-          const password =
-            document
-              .getElementById(
-                "password"
-              )
-              ?.value;
+      if (!email || !password) {
+        showStatus(
+          "Veuillez remplir les deux champs.",
+          "error"
+        );
 
-          if (
-            !email ||
-            !password
-          ) {
+        return;
+      }
 
-            showStatus(
-              "Veuillez remplir les deux champs.",
-              "error"
-            );
+      await login(email, password);
+    });
+  }
 
-            return;
-          }
+  /* -------------------------------------------------------
+     DÉCONNEXION — DEMANDE DE CONFIRMATION
+  ------------------------------------------------------- */
 
-          await login(
-            email,
-            password
-          );
+  const logout = document.getElementById("logoutBtn");
+
+  if (logout) {
+    logout.addEventListener("click", async event => {
+      event.preventDefault();
+
+      if (!confirmLeaveAdmin()) {
+        return;
+      }
+
+      try {
+        const { error } =
+          await window.supabaseClient.auth.signOut();
+
+        if (error) {
+          throw error;
         }
-      );
-    }
 
+        currentUser = null;
+        currentData = {};
+        savedSnapshots.clear();
+        currentSection = null;
 
-    /* Déconnexion */
+        showLogin();
 
-    const logout =
-      document.getElementById(
-        "logoutBtn"
-      );
+        showStatus("Déconnexion effectuée.");
+      } catch (error) {
+        console.error("Erreur de déconnexion :", error);
 
-    if (logout) {
-
-      logout.addEventListener(
-        "click",
-        async () => {
-
-          await window.supabaseClient
-            .auth
-            .signOut();
-
-          currentUser =
-            null;
-
-          currentData =
-            {};
-
-          currentSection =
-            null;
-
-          showLogin();
-
-          showStatus(
-            "Déconnexion effectuée."
-          );
-        }
-      );
-    }
-
-
-    /* Interface CMS */
-
-    const adminSection =
-      document.getElementById(
-        "adminSection"
-      );
-
-    if (adminSection) {
-
-      const existing =
-        document.getElementById(
-          "cmsLayout"
-        );
-
-      if (!existing) {
-
-        const layout =
-          document.createElement("div");
-
-        layout.id =
-          "cmsLayout";
-
-        Object.assign(layout.style, {
-          display: "grid",
-          gridTemplateColumns: "260px 1fr",
-          gap: "25px",
-          alignItems: "start"
-        });
-
-
-        /* SIDEBAR */
-
-        const sidebar =
-          document.createElement("div");
-
-        Object.assign(sidebar.style, {
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: "14px",
-          padding: "15px",
-          position: "sticky",
-          top: "20px"
-        });
-
-        const sidebarTitle =
-          document.createElement("h3");
-
-        sidebarTitle.textContent =
-          "Sections";
-
-        Object.assign(
-          sidebarTitle.style,
-          {
-            margin:
-              "5px 8px 15px"
-          }
-        );
-
-        const nav =
-          document.createElement("div");
-
-        nav.id =
-          "sectionNav";
-
-        sidebar.append(
-          sidebarTitle,
-          nav
-        );
-
-
-        /* ÉDITEUR */
-
-        const editorCard =
-          document.createElement("div");
-
-        Object.assign(editorCard.style, {
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: "14px",
-          padding: "25px"
-        });
-
-        const editor =
-          document.createElement("div");
-
-        editor.id =
-          "sectionEditor";
-
-        editorCard.appendChild(
-          editor
-        );
-
-        layout.append(
-          sidebar,
-          editorCard
-        );
-
-        adminSection.appendChild(
-          layout
-        );
-
-
-        /* STYLE */
-
-        const style =
-          document.createElement("style");
-
-        style.textContent = `
-
-          @media (max-width: 800px) {
-
-            #cmsLayout {
-              grid-template-columns:
-                1fr !important;
-            }
-
-            #sectionNav {
-              display: grid;
-              grid-template-columns:
-                1fr 1fr;
-              gap: 4px;
-            }
-
-            #cmsLayout >
-            div:first-child {
-              position:
-                static !important;
-            }
-          }
-
-          .cms-field label {
-            font-size: 14px;
-          }
-
-          .cms-field input:focus,
-          .cms-field textarea:focus,
-          .cms-field select:focus {
-            outline: none;
-            border-color: #111827 !important;
-            box-shadow:
-              0 0 0 3px
-              rgba(17,24,39,.08);
-          }
-
-          .secondary {
-            background: #e5e7eb;
-            color: #111827;
-            border: 0;
-            border-radius: 8px;
-            padding: 9px 13px;
-            font-weight: 600;
-            cursor: pointer;
-          }
-
-          .secondary:hover {
-            background: #d1d5db;
-          }
-
-          .primary {
-            background: #111827;
-            color: white;
-            border: 0;
-            border-radius: 8px;
-            padding: 11px 18px;
-            font-weight: 600;
-            cursor: pointer;
-          }
-
-          .primary:hover {
-            opacity: .9;
-          }
-
-          .danger {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 0;
-            border-radius: 8px;
-            padding: 9px 13px;
-            font-weight: 600;
-            cursor: pointer;
-          }
-
-          .danger:hover {
-            background: #fecaca;
-          }
-
-          button:disabled {
-            opacity: .6;
-            cursor: wait;
-          }
-
-        `;
-
-        document.head.appendChild(
-          style
+        showStatus(
+          "La déconnexion a échoué. Réessaie.",
+          "error"
         );
       }
-    }
-
-    checkAdmin();
+    });
   }
-);
+
+  /* -------------------------------------------------------
+     CONSTRUCTION DE L'INTERFACE CMS
+  ------------------------------------------------------- */
+
+  const adminSection =
+    document.getElementById("adminSection");
+
+  if (adminSection) {
+    const existing =
+      document.getElementById("cmsLayout");
+
+    if (!existing) {
+      const layout = document.createElement("div");
+      layout.id = "cmsLayout";
+
+      Object.assign(layout.style, {
+        display: "grid",
+        gridTemplateColumns: "260px 1fr",
+        gap: "25px",
+        alignItems: "start"
+      });
+
+      /* SIDEBAR */
+
+      const sidebar = document.createElement("div");
+
+      Object.assign(sidebar.style, {
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        borderRadius: "14px",
+        padding: "15px",
+        position: "sticky",
+        top: "20px"
+      });
+
+      const sidebarTitle = document.createElement("h3");
+      sidebarTitle.textContent = "Sections";
+
+      Object.assign(sidebarTitle.style, {
+        margin: "5px 8px 15px"
+      });
+
+      const nav = document.createElement("div");
+      nav.id = "sectionNav";
+
+      sidebar.append(sidebarTitle, nav);
+
+      /* ÉDITEUR */
+
+      const editorCard = document.createElement("div");
+
+      Object.assign(editorCard.style, {
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        borderRadius: "14px",
+        padding: "25px"
+      });
+
+      const editor = document.createElement("div");
+      editor.id = "sectionEditor";
+
+      editorCard.appendChild(editor);
+      layout.append(sidebar, editorCard);
+      adminSection.appendChild(layout);
+
+      /* STYLE */
+
+      const style = document.createElement("style");
+
+      style.textContent = `
+        @media (max-width: 800px) {
+          #cmsLayout {
+            grid-template-columns: 1fr !important;
+          }
+
+          #sectionNav {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+          }
+
+          #cmsLayout > div:first-child {
+            position: static !important;
+          }
+        }
+
+        .cms-field label {
+          font-size: 14px;
+        }
+
+        .cms-field input:focus,
+        .cms-field textarea:focus,
+        .cms-field select:focus {
+          outline: none;
+          border-color: #111827 !important;
+          box-shadow: 0 0 0 3px rgba(17,24,39,.08);
+        }
+
+        .secondary {
+          background: #e5e7eb;
+          color: #111827;
+          border: 0;
+          border-radius: 8px;
+          padding: 9px 13px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .secondary:hover {
+          background: #d1d5db;
+        }
+
+        .primary {
+          background: #111827;
+          color: white;
+          border: 0;
+          border-radius: 8px;
+          padding: 11px 18px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .primary:hover {
+          opacity: .9;
+        }
+
+        .danger {
+          background: #fee2e2;
+          color: #991b1b;
+          border: 0;
+          border-radius: 8px;
+          padding: 9px 13px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .danger:hover {
+          background: #fecaca;
+        }
+
+        button:disabled {
+          opacity: .6;
+          cursor: wait;
+        }
+      `;
+
+      document.head.appendChild(style);
+    }
+  }
+
+  // Vérifier la session et charger le contenu.
+  checkAdmin();
+});
