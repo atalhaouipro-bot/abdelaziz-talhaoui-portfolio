@@ -1718,123 +1718,87 @@ function render(event) {
   const contactForm =
     document.getElementById("contactForm");
 
-  if (contactForm) {
+ if (contactForm) {
+  contactForm.addEventListener("submit", async event => {
+    event.preventDefault();
 
-    contactForm.addEventListener(
-      "submit",
-      async event => {
+    const status = document.getElementById("formStatus");
+    const submit = contactForm.querySelector('button[type="submit"]');
 
-        event.preventDefault();
+    if (!contactForm.reportValidity()) {
+      return;
+    }
 
-        const status =
-          document.getElementById("formStatus");
+    if (submit) {
+      submit.disabled = true;
+      submit.dataset.original = submit.textContent;
+      submit.textContent = L === "fr" ? "Envoi…" : "Sending…";
+    }
 
-        const submit =
-          contactForm.querySelector(
-            'button[type="submit"]'
-          );
+    if (status) {
+      status.className = "form-status";
+      status.textContent = "";
+    }
 
-        if (!contactForm.reportValidity()) {
-          return;
-        }
+    try {
+      const formData = new FormData(contactForm);
 
-        if (submit) {
-
-          submit.disabled = true;
-
-          submit.dataset.original =
-            submit.textContent;
-
-          submit.textContent =
-            L === "fr"
-              ? "Envoi…"
-              : "Sending…";
-
-        }
+      // Protection anti-spam : champ invisible
+      if (String(formData.get("bot-field") || "").trim()) {
+        contactForm.reset();
 
         if (status) {
-
-          status.className =
-            "form-status";
-
-          status.textContent = "";
-
+          status.className = "form-status success";
+          status.textContent = u("formSuccess");
         }
 
-        try {
-
-          const formData =
-            new FormData(contactForm);
-
-          const response =
-            await fetch("/", {
-
-              method: "POST",
-
-              headers: {
-                "Content-Type":
-                  "application/x-www-form-urlencoded"
-              },
-
-              body:
-                new URLSearchParams(
-                  formData
-                ).toString()
-
-            });
-
-          if (!response.ok) {
-
-            throw new Error(
-              "Submission failed"
-            );
-
-          }
-
-          contactForm.reset();
-
-          if (status) {
-
-            status.className =
-              "form-status success";
-
-            status.textContent =
-              u("formSuccess");
-
-          }
-
-        } catch (error) {
-
-          console.error(error);
-
-          if (status) {
-
-            status.className =
-              "form-status error";
-
-            status.textContent =
-              u("formError");
-
-          }
-
-        } finally {
-
-          if (submit) {
-
-            submit.disabled = false;
-
-            submit.textContent =
-              submit.dataset.original ||
-              u("send");
-
-          }
-
-        }
-
+        return;
       }
-    );
 
-  }
+      // Vérifier la connexion à Supabase
+      if (!window.supabaseClient) {
+        throw new Error("Supabase client is unavailable");
+      }
+
+      // Enregistrer le message dans la base de données
+      const { error } = await window.supabaseClient
+        .from("contact_messages")
+        .insert({
+          name: String(formData.get("name") || "").trim(),
+          email: String(formData.get("email") || "").trim(),
+          phone: String(formData.get("phone") || "").trim() || null,
+          organization: String(formData.get("organization") || "").trim() || null,
+          request_type: String(formData.get("request-type") || "").trim() || null,
+          message: String(formData.get("message") || "").trim()
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      contactForm.reset();
+
+      if (status) {
+        status.className = "form-status success";
+        status.textContent = u("formSuccess");
+      }
+
+    } catch (error) {
+      console.error("Erreur du formulaire de contact :", error);
+
+      if (status) {
+        status.className = "form-status error";
+        status.textContent = u("formError");
+      }
+
+    } finally {
+      if (submit) {
+        submit.disabled = false;
+        submit.textContent = submit.dataset.original || u("send");
+      }
+    }
+  });
+}
 
   document
     .querySelectorAll(".filters button")
