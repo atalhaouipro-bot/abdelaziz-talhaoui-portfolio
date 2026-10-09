@@ -3,10 +3,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Administration | Abdelaziz Talhaoui</title>
 
@@ -135,7 +132,7 @@
       gap: 20px;
     }
 
-    /* AJOUT : bouton du portfolio */
+    /* Bouton vers le portfolio public */
     .portfolio-link {
       display: inline-flex;
       align-items: center;
@@ -175,6 +172,11 @@
       .actions {
         width: 100%;
       }
+
+      .portfolio-link,
+      .actions button {
+        max-width: 100%;
+      }
     }
   </style>
 </head>
@@ -192,7 +194,6 @@
         Gestion du contenu du portfolio
       </p>
 
-      <!-- AJOUT : lien vers le portfolio public -->
       <p>
         <a
           class="portfolio-link"
@@ -241,7 +242,7 @@
 
     </section>
 
-    <!-- ADMIN -->
+    <!-- ADMINISTRATION -->
     <section id="adminSection" class="hidden">
 
       <div class="topbar">
@@ -256,7 +257,6 @@
 
         <div class="actions">
 
-          <!-- AJOUT : lien vers le portfolio public -->
           <a
             class="portfolio-link"
             href="https://abdelaziz-talhaoui-portfolio.a-talhaouipro.workers.dev/"
@@ -285,9 +285,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <script src="assets/supabase.js"></script>
-
   <script src="assets/admin.js"></script>
 
 </body>
