@@ -2279,6 +2279,64 @@ section:not(.hero) + section:not(.hero) {
 
 
 /* =========================================================
+   NAVIGATION ADAPTÉE AU MENU À 8 RUBRIQUES
+   Le menu se replie avant que les huit liens ne se chevauchent.
+   ========================================================= */
+
+@media (min-width: 761px) and (max-width: 1180px) {
+
+  #nav > .w,
+  #nav .w {
+    gap: 12px;
+  }
+
+  .brand {
+    font-size: .76rem;
+  }
+
+  #mn {
+    position: absolute;
+    top: 100%;
+    left: 21px;
+    right: 21px;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .98);
+    box-shadow: var(--shadow-lg);
+  }
+
+  #mn.open {
+    display: flex;
+  }
+
+  #mn a {
+    padding: 11px 12px;
+    border-radius: 7px;
+    font-size: .76rem;
+  }
+
+  #mn a::after {
+    display: none;
+  }
+
+  #mn a:hover {
+    background: var(--bg);
+  }
+
+  .bg {
+    display: grid;
+  }
+}
+
+
+/* =========================================================
    REDUCED MOTION
    ========================================================= */
 
