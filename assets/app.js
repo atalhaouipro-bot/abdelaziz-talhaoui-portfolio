@@ -17,11 +17,11 @@ const T = value => {
 const U = {
   fr: {
     nav: ["Accueil", "À propos", "Réalisations", "Ma démarche", "Expertises & certifications", "Recherche", "FORMA LAB", "Contact"],
-    homeTitle: "Accueil", careerTitle: "Parcours professionnel", expertiseTitle: "Expertises & certifications", aboutTitle: "À propos",
+    homeTitle: "Accueil", aboutTitle: "À propos", careerTitle: "Parcours professionnel", expertiseTitle: "Expertises & certifications",
     projectsTitle: "Réalisations", approachTitle: "Ma démarche", researchTitle: "Recherche", formaTitle: "FORMA LAB",
     c1: "Découvrir mon parcours", c2: "Voir mes réalisations", loop: "Une démarche structurée", feat: "Projets repères", all: "Tous",
     ctx: "Contexte", need: "Besoin", goal: "Objectif", role: "Mon rôle", app: "Démarche", del: "Livrables", tools: "Outils", res: "Résultats", imp: "Impact", link: "Lien",
-    back: "← Réalisations", impt: "Résultats", dates: "Dates", resp: "Responsabilités", proj: "Projets", ach: "Réalisations",
+    back: "← Réalisations", impt: "Résultats", keyFigures: "Quelques repères", dates: "Dates", resp: "Responsabilités", proj: "Projets", ach: "Contributions",
     cv: "Télécharger mon CV", thesis: "Mémoire", q: "Problématique", cert: "Certifications", pub: "Publications", talks: "Conférences",
     about: "À propos", vis: "Vision", met: "Méthode", st: "Statut", productions: "Productions", production: "Production pédagogique",
     participantPack: "Pack participant", trainerPack: "Pack formateur", evaluation: "Évaluation", frameworks: "Référentiels",
@@ -39,11 +39,11 @@ const U = {
   },
   en: {
     nav: ["Home", "About", "Projects", "My approach", "Expertise & certifications", "Research", "FORMA LAB", "Contact"],
-    homeTitle: "Home", careerTitle: "Professional background", expertiseTitle: "Expertise & certifications", aboutTitle: "About",
+    homeTitle: "Home", aboutTitle: "About", careerTitle: "Professional background", expertiseTitle: "Expertise & certifications",
     projectsTitle: "Projects", approachTitle: "My approach", researchTitle: "Research", formaTitle: "FORMA LAB",
     c1: "Explore my background", c2: "See my work", loop: "A structured approach", feat: "Selected projects", all: "All",
     ctx: "Context", need: "Need", goal: "Goal", role: "My role", app: "Approach", del: "Deliverables", tools: "Tools", res: "Results", imp: "Impact", link: "Link",
-    back: "← Projects", impt: "Results", dates: "Dates", resp: "Responsibilities", proj: "Projects", ach: "Achievements",
+    back: "← Projects", impt: "Results", keyFigures: "Key figures", dates: "Dates", resp: "Responsibilities", proj: "Projects", ach: "Achievements",
     cv: "Download my CV", thesis: "Thesis", q: "Research question", cert: "Certifications", pub: "Publications", talks: "Talks",
     about: "About", vis: "Vision", met: "Method", st: "Status", productions: "Outputs", production: "Learning content",
     participantPack: "Participant pack", trainerPack: "Trainer pack", evaluation: "Assessment", frameworks: "Competency frameworks",
@@ -104,7 +104,7 @@ const stats = achievements => {
   if (!Array.isArray(achievements)) return "";
   return achievements.filter(item => item && (item.v !== "" || S.draft)).map(item => `<div><b>${item.v === "" ? val("") : item.v}</b><span>${T(item.l)}</span></div>`).join("");
 };
-const loop = () => !Array.isArray(D.loop) ? "" : `<div class="loop">${D.loop.map((step, index) => `<a href="#/realisations/f:${step.cat}"><small>0${index + 1}</small>${T(step.k)}</a>`).join("")}</div>`;
+const loop = () => !Array.isArray(D.loop) ? "" : `<div class="loop">${D.loop.map((step, index) => `<div class="loop-step"><small>0${index + 1}</small>${T(step.k)}</div>`).join("")}</div>`;
 const card = project => {
   if (!project) return "";
   const categories = Array.isArray(project.cat) ? project.cat : [];
@@ -127,19 +127,11 @@ const toolsSection = () => {
 };
 
 const pages = {
-  home: () => `<section class="hero"><div class="w"><p class="title">${T(P.title)}</p><h1>${T(P.tagline)}</h1><p class="lead">${T(P.sub)}</p><div class="hero-actions"><a class="btn" href="#section-expertises">${u("c1")}</a><a class="btn o" href="#section-realisations">${u("c2")}</a></div></div></section><section><div class="w"><h2>${u("loop")}</h2>${loop()}</div></section><section><div class="w"><h2>${u("ach")}</h2><div class="stats">${stats(D.achievements)}</div></div></section>`,
+  home: () => `<section class="hero"><div class="w"><p class="title">${T(P.title)}</p><h1>${T(P.tagline)}</h1><p class="lead">${T(P.sub)}</p><div class="hero-actions"><a class="btn" href="#section-apropos">${u("c1")}</a><a class="btn o" href="#section-realisations">${u("c2")}</a></div></div></section>`,
 
-  // La démarche dispose de sa propre section de navigation.
-  demarche: () => `<div class="page"><div class="w"><h1>${u("approachTitle")}</h1><p class="lead">${T(P.vision)}</p>${block(u("met"), P.method)}<section class="subsection"><h2>${u("loop")}</h2>${loop()}</section><section class="subsection"><h2>${u("ach")}</h2><div class="stats">${stats(D.achievements)}</div></section></div></div>`,
+  demarche: () => `<div class="page"><div class="w"><h1>${u("approachTitle")}</h1><p class="lead">${T(P.vision)}</p>${block(u("met"), P.method)}<section class="subsection"><h2>${u("loop")}</h2>${loop()}</section></div></div>`,
 
-  // Les expertises sont séparées de la présentation personnelle et du parcours.
-  expertises: () => {
-    const research = D.research || {};
-    return `<div class="page"><div class="w"><h1>${u("expertiseTitle")}</h1><div class="grid">${Array.isArray(D.expertises) ? D.expertises.map(expertise => { const proofProject = expertise.proof ? (D.projects || []).find(project => project.id === expertise.proof) : null; return `<div class="card rv"><h3>${T(expertise.n)}</h3><ul>${list(expertise.items).map(item => `<li>${item}</li>`).join("")}</ul>${proofProject ? `<p class="tag proof"><a href="#/realisations/${expertise.proof}">→ ${T(proofProject.title)}</a></p>` : ""}</div>`; }).join("") : ""}</div><section class="subsection"><h2>${u("cert")}</h2><div class="certifications">${list(research.certifications).map(certification => `<div class="cert-item"><span class="cert-mark">✓</span><span>${certification}</span></div>`).join("")}</div></section></div></div>`;
-  },
-
-  // Section À propos autonome : identité, présentation, expériences et productions.
-  apropos: () => `<div class="page"><div class="w"><h1>${u("aboutTitle")}</h1><div class="about-grid"><aside class="about-identity"><div class="about-monogram" aria-hidden="true">AT</div><div class="about-photo-wrap"><img class="about-photo" src="assets/abdelaziz-talhaoui-photo.jpg" alt="Abdelaziz Talhaoui" loading="lazy"></div><div class="about-identity-text"><p class="about-name">${T(P.name)}</p><p class="about-role">${T(P.title)}</p></div></aside><div class="about-content">${Array.isArray(P.about) ? P.about.filter(item => T(item) || S.draft).map(item => `<p class="lead">${val(item)}</p>`).join("") : ""}</div></div>${block(u("vis"), P.vision)}<h2 class="section-title">${u("careerTitle")}</h2><div class="experience-list">${Array.isArray(D.experiences) ? D.experiences.map(experience => `<details><summary>${T(experience.role)}<span> — ${T(experience.org)}</span></summary>${block(u("dates"), experience.dates)}${block(u("ctx"), experience.context)}${listBlock(u("resp"), experience.resp)}${listBlock(u("proj"), experience.projects)}${listBlock(u("ach"), experience.achievements)}${block(u("imp"), experience.impact)}</details>`).join("") : ""}</div>${productionsSection()}${toolsSection()}</div></div>`,
+  apropos: () => `<div class="page"><div class="w"><h1>${u("aboutTitle")}</h1><div class="about-grid"><aside class="about-identity"><div class="about-monogram" aria-hidden="true">AT</div><div class="about-photo-wrap"><img class="about-photo" src="assets/abdelaziz-talhaoui-photo.jpg" alt="Abdelaziz Talhaoui" loading="lazy"></div><div class="about-identity-text"><p class="about-name">${T(P.name)}</p><p class="about-role">${T(P.title)}</p></div>${S.cv ? `<a class="btn o" href="${S.cv}" target="_blank" rel="noopener noreferrer">${u("cv")} ↗</a>` : ""}</aside><div class="about-content">${Array.isArray(P.about) ? P.about.filter(item => T(item) || S.draft).map(item => `<p class="lead">${val(item)}</p>`).join("") : ""}</div></div><section class="subsection"><h2>${u("keyFigures")}</h2><div class="stats">${stats(D.achievements)}</div></section><section class="subsection"><h2>${u("careerTitle")}</h2><div class="experience-list">${Array.isArray(D.experiences) ? D.experiences.map(experience => `<details><summary>${T(experience.role)}<span> — ${T(experience.org)}</span></summary>${block(u("dates"), experience.dates)}${block(u("ctx"), experience.context)}${listBlock(u("resp"), experience.resp)}${listBlock(u("proj"), experience.projects)}${listBlock(u("ach"), experience.achievements)}${block(u("imp"), experience.impact)}</details>`).join("") : ""}</div></section>${productionsSection()}${toolsSection()}</div></div>`,
 
   realisations: argument => {
     const filter = argument && argument.startsWith("f:") ? argument.slice(2) : "";
@@ -149,9 +141,18 @@ const pages = {
     const categories = Array.isArray(D.categories) ? D.categories : [];
     return `<div class="page"><div class="w"><h1>${u("projectsTitle")}</h1><div class="filters" role="group" aria-label="${u("projectsTitle")}">${["", ...categories.map(c => c.id)].map(id => `<button type="button" data-f="${id}" class="${id === filter ? "on" : ""}">${id ? cat(id) : u("all")}</button>`).join("")}</div><div class="grid" id="pg">${projects.filter(project => !filter || (Array.isArray(project.cat) && project.cat.includes(filter))).map(card).join("")}</div></div></div>`;
   },
+  // La démarche est présentée ici une seule fois, sans statistiques ni catalogue de projets.
+  demarche: () => `<div class="page"><div class="w"><h1>${u("approachTitle")}</h1><p class="lead">${T(P.vision)}</p>${block(u("met"), P.method)}<section class="subsection"><h2>${u("loop")}</h2>${loop()}</section></div></div>`,
+
+  expertises: () => {
+    const r = D.research || {};
+    const certs = list(r.certifications);
+    return `<div class="page"><div class="w"><h1>${u("expertiseTitle")}</h1><section class="subsection"><h2>${u("expertiseTitle")}</h2><div class="grid">${Array.isArray(D.expertises) ? D.expertises.map(expertise => { const proofProject = expertise.proof ? (D.projects || []).find(project => project.id === expertise.proof) : null; return `<div class="card rv"><h3>${T(expertise.n)}</h3><ul>${list(expertise.items).map(item => `<li>${item}</li>`).join("")}</ul>${proofProject ? `<p class="tag proof"><a href="#/realisations/${expertise.proof}">→ ${T(proofProject.title)}</a></p>` : ""}</div>`; }).join("") : ""}</div></section>${certs.length ? `<section class="subsection"><h2>${u("cert")}</h2><div class="certifications">${certs.map(certification => `<div class="cert-item"><span class="cert-mark">✓</span><span>${certification}</span></div>`).join("")}</div></section>` : ""}</div></div>`;
+  },
+
   recherche: () => {
     const r = D.research || {};
-    return `<div class="page"><div class="w"><h1>${u("researchTitle")}</h1><div class="research-intro">${block("Master", r.education)}${block(u("st"), r.status)}${block(u("thesis"), r.thesis)}${block(u("q"), r.question)}</div><a class="btn o" href="#/realisations/memoire">→ ${u("thesis")}</a>${block(u("pub"), r.publications)}${T(r.talks) ? block(u("talks"), r.talks) : ""}</div></div>`;
+    return `<div class="page"><div class="w"><h1>${u("researchTitle")}</h1><div class="research-intro">${block("Master", r.education)}${block(u("st"), r.status)}${block(u("thesis"), r.thesis)}${block(u("q"), r.question)}</div><a class="btn o" href="#/realisations/memoire">→ ${u("thesis")}</a>${T(r.publications) ? `<section class="subsection">${block(u("pub"), r.publications)}</section>` : ""}${T(r.talks) ? `<section class="subsection">${block(u("talks"), r.talks)}</section>` : ""}</div></div>`;
   },
   "forma-lab": () => {
     const f = D.formalab || {};
@@ -193,7 +194,7 @@ function render(event) {
   let key = parts[0] || "home";
   const argument = parts[1] || "";
   // Redirection logique de l'ancien item Parcours vers la section qui contient le parcours.
-  if (key === "parcours") key = "apropos";
+  if (key === "parcours" || key === "about") key = "apropos";
   const activeKey = isAnchorHash ? currentHash.slice("#section-".length) : (ROUTES.includes(key) ? key : "home");
   const main = document.getElementById("main");
   const nav = document.getElementById("nav");
