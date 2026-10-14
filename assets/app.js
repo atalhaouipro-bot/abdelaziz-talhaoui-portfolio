@@ -16,8 +16,8 @@ const T = value => {
 
 const U = {
   fr: {
-    nav: ["Accueil", "Réalisations", "Ma démarche", "Expertises & certifications", "Recherche", "FORMA LAB", "Contact"],
-    homeTitle: "Accueil", careerTitle: "Parcours professionnel", expertiseTitle: "Expertises & certifications",
+    nav: ["Accueil", "À propos", "Réalisations", "Ma démarche", "Expertises & certifications", "Recherche", "FORMA LAB", "Contact"],
+    homeTitle: "Accueil", careerTitle: "Parcours professionnel", expertiseTitle: "Expertises & certifications", aboutTitle: "À propos",
     projectsTitle: "Réalisations", approachTitle: "Ma démarche", researchTitle: "Recherche", formaTitle: "FORMA LAB",
     c1: "Découvrir mon parcours", c2: "Voir mes réalisations", loop: "Une démarche structurée", feat: "Projets repères", all: "Tous",
     ctx: "Contexte", need: "Besoin", goal: "Objectif", role: "Mon rôle", app: "Démarche", del: "Livrables", tools: "Outils", res: "Résultats", imp: "Impact", link: "Lien",
@@ -38,8 +38,8 @@ const U = {
     publicationsHeading: "Une démarche de transmission professionnelle.", footer: "Ingénierie de formation · Ingénierie pédagogique · Évaluation"
   },
   en: {
-    nav: ["Home", "Projects", "My approach", "Expertise & certifications", "Research", "FORMA LAB", "Contact"],
-    homeTitle: "Home", careerTitle: "Professional background", expertiseTitle: "Expertise & certifications",
+    nav: ["Home", "About", "Projects", "My approach", "Expertise & certifications", "Research", "FORMA LAB", "Contact"],
+    homeTitle: "Home", careerTitle: "Professional background", expertiseTitle: "Expertise & certifications", aboutTitle: "About",
     projectsTitle: "Projects", approachTitle: "My approach", researchTitle: "Research", formaTitle: "FORMA LAB",
     c1: "Explore my background", c2: "See my work", loop: "A structured approach", feat: "Selected projects", all: "All",
     ctx: "Context", need: "Need", goal: "Goal", role: "My role", app: "Approach", del: "Deliverables", tools: "Tools", res: "Results", imp: "Impact", link: "Link",
@@ -65,12 +65,13 @@ const u = key => U[L]?.[key] ?? U.fr[key] ?? key;
 // Identifiants de sections de la page unique et libellés indépendants des titres.
 const NAV = [
   { id: "home", label: 0, title: "homeTitle" },
-  { id: "realisations", label: 1, title: "projectsTitle" },
-  { id: "demarche", label: 2, title: "approachTitle" },
-  { id: "expertises", label: 3, title: "expertiseTitle" },
-  { id: "recherche", label: 4, title: "researchTitle" },
-  { id: "forma-lab", label: 5, title: "formaTitle" },
-  { id: "contact", label: 6, title: "contactTitle" }
+  { id: "apropos", label: 1, title: "aboutTitle" },
+  { id: "realisations", label: 2, title: "projectsTitle" },
+  { id: "demarche", label: 3, title: "approachTitle" },
+  { id: "expertises", label: 4, title: "expertiseTitle" },
+  { id: "recherche", label: 5, title: "researchTitle" },
+  { id: "forma-lab", label: 6, title: "formaTitle" },
+  { id: "contact", label: 7, title: "contactTitle" }
 ];
 const ROUTES = NAV.map(item => item.id);
 
@@ -131,8 +132,14 @@ const pages = {
   // La démarche dispose de sa propre section de navigation.
   demarche: () => `<div class="page"><div class="w"><h1>${u("approachTitle")}</h1><p class="lead">${T(P.vision)}</p>${block(u("met"), P.method)}<section class="subsection"><h2>${u("loop")}</h2>${loop()}</section><section class="subsection"><h2>${u("ach")}</h2><div class="stats">${stats(D.achievements)}</div></section></div></div>`,
 
-  // Le parcours, la présentation et les productions restent accessibles ici, sans ajouter d'entrée au menu.
-  expertises: () => `<div class="page"><div class="w"><h1>${u("expertiseTitle")}</h1><section class="subsection"><h2>${u("about")}</h2><div class="about-grid"><aside class="about-identity"><div class="about-monogram" aria-hidden="true">AT</div><div class="about-photo-wrap"><img class="about-photo" src="assets/abdelaziz-talhaoui-photo.jpg" alt="Abdelaziz Talhaoui" loading="lazy"></div><div class="about-identity-text"><p class="about-name">${T(P.name)}</p><p class="about-role">${T(P.title)}</p></div></aside><div class="about-content">${Array.isArray(P.about) ? P.about.filter(item => T(item) || S.draft).map(item => `<p class="lead">${val(item)}</p>`).join("") : ""}</div></div>${block(u("vis"), P.vision)}${block(u("met"), P.method)}<h2 class="section-title">${u("careerTitle")}</h2><div class="experience-list">${Array.isArray(D.experiences) ? D.experiences.map(experience => `<details><summary>${T(experience.role)}<span> — ${T(experience.org)}</span></summary>${block(u("dates"), experience.dates)}${block(u("ctx"), experience.context)}${listBlock(u("resp"), experience.resp)}${listBlock(u("proj"), experience.projects)}${listBlock(u("ach"), experience.achievements)}${block(u("imp"), experience.impact)}</details>`).join("") : ""}</div></section><section class="subsection"><h2>${u("expertiseTitle")}</h2><div class="grid">${Array.isArray(D.expertises) ? D.expertises.map(expertise => { const proofProject = expertise.proof ? (D.projects || []).find(project => project.id === expertise.proof) : null; return `<div class="card rv"><h3>${T(expertise.n)}</h3><ul>${list(expertise.items).map(item => `<li>${item}</li>`).join("")}</ul>${proofProject ? `<p class="tag proof"><a href="#/realisations/${expertise.proof}">→ ${T(proofProject.title)}</a></p>` : ""}</div>`; }).join("") : ""}</div></section>${productionsSection()}${toolsSection()}</div></div>`,
+  // Les expertises sont séparées de la présentation personnelle et du parcours.
+  expertises: () => {
+    const research = D.research || {};
+    return `<div class="page"><div class="w"><h1>${u("expertiseTitle")}</h1><div class="grid">${Array.isArray(D.expertises) ? D.expertises.map(expertise => { const proofProject = expertise.proof ? (D.projects || []).find(project => project.id === expertise.proof) : null; return `<div class="card rv"><h3>${T(expertise.n)}</h3><ul>${list(expertise.items).map(item => `<li>${item}</li>`).join("")}</ul>${proofProject ? `<p class="tag proof"><a href="#/realisations/${expertise.proof}">→ ${T(proofProject.title)}</a></p>` : ""}</div>`; }).join("") : ""}</div><section class="subsection"><h2>${u("cert")}</h2><div class="certifications">${list(research.certifications).map(certification => `<div class="cert-item"><span class="cert-mark">✓</span><span>${certification}</span></div>`).join("")}</div></section></div></div>`;
+  },
+
+  // Section À propos autonome : identité, présentation, expériences et productions.
+  apropos: () => `<div class="page"><div class="w"><h1>${u("aboutTitle")}</h1><div class="about-grid"><aside class="about-identity"><div class="about-monogram" aria-hidden="true">AT</div><div class="about-photo-wrap"><img class="about-photo" src="assets/abdelaziz-talhaoui-photo.jpg" alt="Abdelaziz Talhaoui" loading="lazy"></div><div class="about-identity-text"><p class="about-name">${T(P.name)}</p><p class="about-role">${T(P.title)}</p></div></aside><div class="about-content">${Array.isArray(P.about) ? P.about.filter(item => T(item) || S.draft).map(item => `<p class="lead">${val(item)}</p>`).join("") : ""}</div></div>${block(u("vis"), P.vision)}<h2 class="section-title">${u("careerTitle")}</h2><div class="experience-list">${Array.isArray(D.experiences) ? D.experiences.map(experience => `<details><summary>${T(experience.role)}<span> — ${T(experience.org)}</span></summary>${block(u("dates"), experience.dates)}${block(u("ctx"), experience.context)}${listBlock(u("resp"), experience.resp)}${listBlock(u("proj"), experience.projects)}${listBlock(u("ach"), experience.achievements)}${block(u("imp"), experience.impact)}</details>`).join("") : ""}</div>${productionsSection()}${toolsSection()}</div></div>`,
 
   realisations: argument => {
     const filter = argument && argument.startsWith("f:") ? argument.slice(2) : "";
@@ -144,7 +151,7 @@ const pages = {
   },
   recherche: () => {
     const r = D.research || {};
-    return `<div class="page"><div class="w"><h1>${u("researchTitle")}</h1><div class="research-intro">${block("Master", r.education)}${block(u("st"), r.status)}${block(u("thesis"), r.thesis)}${block(u("q"), r.question)}</div><a class="btn o" href="#/realisations/memoire">→ ${u("thesis")}</a><section class="subsection"><h2>${u("cert")}</h2><div class="certifications">${list(r.certifications).map(certification => `<div class="cert-item"><span class="cert-mark">✓</span><span>${certification}</span></div>`).join("")}</div></section>${block(u("pub"), r.publications)}${T(r.talks) ? block(u("talks"), r.talks) : ""}</div></div>`;
+    return `<div class="page"><div class="w"><h1>${u("researchTitle")}</h1><div class="research-intro">${block("Master", r.education)}${block(u("st"), r.status)}${block(u("thesis"), r.thesis)}${block(u("q"), r.question)}</div><a class="btn o" href="#/realisations/memoire">→ ${u("thesis")}</a>${block(u("pub"), r.publications)}${T(r.talks) ? block(u("talks"), r.talks) : ""}</div></div>`;
   },
   "forma-lab": () => {
     const f = D.formalab || {};
@@ -153,13 +160,14 @@ const pages = {
   },
   contact: () => {
     const links = D.links || {};
-    return `<div class="page"><div class="w"><div class="page-hero contact-hero"><div class="page-hero-copy"><p class="eyebrow">${u("nav")[6]}</p><h1>${u("contactTitle")}</h1><p class="lead">${u("contactText")}</p><div class="contact-direct">${links.linkedin ? `<a class="contact-direct-item" href="${links.linkedin}" target="_blank" rel="noopener noreferrer"><span class="contact-direct-label">LinkedIn</span><span>Profil professionnel ↗</span></a>` : ""}${links.email ? `<a class="contact-direct-item" href="mailto:${links.email}"><span class="contact-direct-label">E-mail</span><span>${links.email}</span></a>` : ""}<a class="contact-direct-item" href="tel:${PHONE.replace(/[^0-9+]/g, "")}"><span class="contact-direct-label">${u("phone")}</span><span>${PHONE}</span></a>${S.cv ? `<a class="contact-direct-item" href="${S.cv}" target="_blank" rel="noopener noreferrer"><span class="contact-direct-label">CV</span><span>${u("cv")} ↗</span></a>` : ""}</div></div><div class="contact-form-shell"><div class="form-heading"><span>01</span><strong>${u("formHeading")}</strong></div><form id="contactForm" name="contact" method="POST" action="/" data-netlify="true" data-netlify-honeypot="bot-field" novalidate><input type="hidden" name="form-name" value="contact"><p class="honeypot"><label>Ne pas remplir :<input name="bot-field" tabindex="-1" autocomplete="off"></label></p><div class="form-grid"><label class="form-field"><span>${u("formName")} *</span><input name="name" type="text" required autocomplete="name"></label><label class="form-field"><span>${u("formEmail")} *</span><input name="email" type="email" required autocomplete="email"></label><label class="form-field"><span>${u("formPhone")}</span><input name="phone" type="tel" autocomplete="tel"></label><label class="form-field"><span>${u("formOrg")}</span><input name="organization" type="text" autocomplete="organization"></label><label class="form-field form-field-full"><span>${u("formType")}</span><select name="request-type"><option value="">—</option><option value="Projet de formation">${u("formTypeProject")}</option><option value="Ingénierie pédagogique">${u("formTypePedagogy")}</option><option value="Évaluation / mesure">${u("formTypeEvaluation")}</option><option value="Proposition de partenariat">${u("formTypePartnership")}</option><option value="Autre">${u("formTypeOther")}</option></select></label><label class="form-field form-field-full"><span>${u("formMessage")} *</span><textarea name="message" rows="7" required placeholder="${u("formMessagePlaceholder")}"></textarea></label></div><div class="form-bottom"><p>${u("formPrivacy")}</p><button class="btn" type="submit">${u("send")} →</button></div><div id="formStatus" class="form-status" role="status" aria-live="polite"></div></form></div></div></div></div>`;
+    return `<div class="page"><div class="w"><div class="page-hero contact-hero"><div class="page-hero-copy"><p class="eyebrow">${u("nav")[7]}</p><h1>${u("contactTitle")}</h1><p class="lead">${u("contactText")}</p><div class="contact-direct">${links.linkedin ? `<a class="contact-direct-item" href="${links.linkedin}" target="_blank" rel="noopener noreferrer"><span class="contact-direct-label">LinkedIn</span><span>Profil professionnel ↗</span></a>` : ""}${links.email ? `<a class="contact-direct-item" href="mailto:${links.email}"><span class="contact-direct-label">E-mail</span><span>${links.email}</span></a>` : ""}<a class="contact-direct-item" href="tel:${PHONE.replace(/[^0-9+]/g, "")}"><span class="contact-direct-label">${u("phone")}</span><span>${PHONE}</span></a>${S.cv ? `<a class="contact-direct-item" href="${S.cv}" target="_blank" rel="noopener noreferrer"><span class="contact-direct-label">CV</span><span>${u("cv")} ↗</span></a>` : ""}</div></div><div class="contact-form-shell"><div class="form-heading"><span>01</span><strong>${u("formHeading")}</strong></div><form id="contactForm" name="contact" method="POST" action="/" data-netlify="true" data-netlify-honeypot="bot-field" novalidate><input type="hidden" name="form-name" value="contact"><p class="honeypot"><label>Ne pas remplir :<input name="bot-field" tabindex="-1" autocomplete="off"></label></p><div class="form-grid"><label class="form-field"><span>${u("formName")} *</span><input name="name" type="text" required autocomplete="name"></label><label class="form-field"><span>${u("formEmail")} *</span><input name="email" type="email" required autocomplete="email"></label><label class="form-field"><span>${u("formPhone")}</span><input name="phone" type="tel" autocomplete="tel"></label><label class="form-field"><span>${u("formOrg")}</span><input name="organization" type="text" autocomplete="organization"></label><label class="form-field form-field-full"><span>${u("formType")}</span><select name="request-type"><option value="">—</option><option value="Projet de formation">${u("formTypeProject")}</option><option value="Ingénierie pédagogique">${u("formTypePedagogy")}</option><option value="Évaluation / mesure">${u("formTypeEvaluation")}</option><option value="Proposition de partenariat">${u("formTypePartnership")}</option><option value="Autre">${u("formTypeOther")}</option></select></label><label class="form-field form-field-full"><span>${u("formMessage")} *</span><textarea name="message" rows="7" required placeholder="${u("formMessagePlaceholder")}"></textarea></label></div><div class="form-bottom"><p>${u("formPrivacy")}</p><button class="btn" type="submit">${u("send")} →</button></div><div id="formStatus" class="form-status" role="status" aria-live="polite"></div></form></div></div></div></div>`;
   }
 };
 
 function buildOnePage() {
   const sections = [
     ["home", pages.home()],
+    ["apropos", pages.apropos()],
     ["realisations", pages.realisations("")],
     ["demarche", pages.demarche()],
     ["expertises", pages.expertises()],
@@ -185,7 +193,7 @@ function render(event) {
   let key = parts[0] || "home";
   const argument = parts[1] || "";
   // Redirection logique de l'ancien item Parcours vers la section qui contient le parcours.
-  if (key === "parcours") key = "expertises";
+  if (key === "parcours") key = "apropos";
   const activeKey = isAnchorHash ? currentHash.slice("#section-".length) : (ROUTES.includes(key) ? key : "home");
   const main = document.getElementById("main");
   const nav = document.getElementById("nav");
