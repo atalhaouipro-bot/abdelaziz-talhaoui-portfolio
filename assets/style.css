@@ -631,7 +631,8 @@ section:not(.hero) + section:not(.hero) {
   overflow: hidden;
 }
 
-.loop a {
+.loop .loop-step {
+  cursor: default;
   min-height: 175px;
 
   position: relative;
@@ -662,11 +663,11 @@ section:not(.hero) + section:not(.hero) {
     color .35s ease;
 }
 
-.loop a:last-child {
+.loop .loop-step:last-child {
   border-right: 0;
 }
 
-.loop a:hover {
+.loop .loop-step:hover {
   z-index: 2;
 
   background:
@@ -1944,11 +1945,11 @@ section:not(.hero) + section:not(.hero) {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  .loop a:nth-child(3) {
+  .loop .loop-step:nth-child(3) {
     border-right: 0;
   }
 
-  .loop a:nth-child(n + 4) {
+  .loop .loop-step:nth-child(n + 4) {
     border-top: 1px solid var(--line);
   }
 
@@ -2090,19 +2091,20 @@ section:not(.hero) + section:not(.hero) {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .loop a {
+  .loop .loop-step {
+  cursor: default;
     min-height: 145px;
   }
 
-  .loop a:nth-child(3) {
+  .loop .loop-step:nth-child(3) {
     border-right: 1px solid var(--line);
   }
 
-  .loop a:nth-child(even) {
+  .loop .loop-step:nth-child(even) {
     border-right: 0;
   }
 
-  .loop a:nth-child(n + 3) {
+  .loop .loop-step:nth-child(n + 3) {
     border-top: 1px solid var(--line);
   }
 
@@ -2236,8 +2238,8 @@ section:not(.hero) + section:not(.hero) {
     grid-template-columns: 1fr;
   }
 
-  .loop a,
-  .loop a:nth-child(n) {
+  .loop .loop-step,
+  .loop .loop-step:nth-child(n) {
     min-height: 115px;
 
     border-right: 0;
@@ -2245,7 +2247,7 @@ section:not(.hero) + section:not(.hero) {
     border-top: 1px solid var(--line);
   }
 
-  .loop a:first-child {
+  .loop .loop-step:first-child {
     border-top: 0;
   }
 
