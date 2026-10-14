@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="fr">
 <head>
@@ -15,9 +16,7 @@
     property="og:title"
     content="Abdelaziz Talhaoui | Ingénierie de formation &amp; ingénierie pédagogique"
   >
-
   <meta property="og:type" content="profile">
-
   <meta
     property="og:description"
     content="Concevoir, former, évaluer, améliorer les dispositifs de formation."
@@ -25,15 +24,15 @@
 
   <script type="application/ld+json">
   {
-    "@context":"https://schema.org",
-    "@type":"Person",
-    "name":"Abdelaziz Talhaoui",
-    "jobTitle":"Ingénierie de formation et ingénierie pédagogique",
-    "worksFor":{
-      "@type":"Organization",
-      "name":"Fondation Marocaine du Préscolaire"
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Abdelaziz Talhaoui",
+    "jobTitle": "Ingénierie de formation et ingénierie pédagogique",
+    "worksFor": {
+      "@type": "Organization",
+      "name": "Fondation Marocaine du Préscolaire"
     },
-    "sameAs":[
+    "sameAs": [
       "https://www.linkedin.com/in/abdelaziz-talhaoui-pro/"
     ]
   }
@@ -43,61 +42,24 @@
 </head>
 
 <body>
-
   <a class="skip" href="#main">Contenu</a>
 
-  <!--
-    Formulaire statique invisible utilisé comme blueprint pour Netlify Forms.
-    Le formulaire visible est rendu par app.js.
-  -->
- <form
-  name="contact"
-  method="POST"
-  data-netlify="true"
-  data-netlify-honeypot="bot-field"
-  hidden
->
-  <input type="hidden" name="form-name" value="contact">
-
-  <input name="name">
-  <input name="email">
-  <input name="phone">
-  <input name="organization">
-
-  <select name="request-type">
-    <option value="">—</option>
-    <option value="Projet de formation">Projet de formation</option>
-    <option value="Ingénierie pédagogique">Ingénierie pédagogique</option>
-    <option value="Évaluation / mesure">Évaluation / mesure</option>
-    <option value="Proposition de partenariat">Proposition de partenariat</option>
-    <option value="Autre">Autre</option>
-  </select>
-
-  <textarea name="message"></textarea>
-
-  <input name="bot-field">
-</form>
-
   <header id="nav"></header>
-
   <main id="main" tabindex="-1"></main>
-
   <footer id="foot"></footer>
 
-<script src="content/data.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="assets/supabase.js"></script>
-<script src="assets/content-loader.js"></script>
+  <script src="content/data.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/supabase.js"></script>
+  <script src="assets/content-loader.js"></script>
 
-<!-- EmailJS : SDK pour les notifications par e-mail -->
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<script>
-  emailjs.init({
-    publicKey: "9aNI7N-YEDV-TeUoX"
-  });
-</script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script>
+    emailjs.init({
+      publicKey: "9aNI7N-YEDV-TeUoX"
+    });
+  </script>
 
-<script src="assets/app.js"></script>
-<script src="assets/test-supabase.js"></script>
+  <script src="assets/app.js"></script>
 </body>
 </html>
