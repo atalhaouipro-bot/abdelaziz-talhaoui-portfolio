@@ -90,6 +90,49 @@ const cat = id => {
   const found = categories.find(category => category.id === id);
   return found ? T(found.n) : id;
 };
+// Catégorie principale affichée pour chaque réalisation.
+// Les filtres sont gérés séparément : un projet peut apparaître dans plusieurs filtres
+// sans afficher plusieurs catégories sur sa carte.
+const PROJECT_PRIMARY_CATEGORY = {
+  maharat: "digital",
+  culturtheque: "formation-formateurs",
+  marshidi: "ing-formation",
+  memoire: "evaluation"
+};
+
+const PROJECT_FILTERS = [
+  {
+    id: "digital-learning",
+    label: { fr: "Digital Learning", en: "Digital Learning" },
+    projects: ["maharat", "culturtheque"]
+  },
+  {
+    id: "ingenierie-formation",
+    label: { fr: "Ingénierie de formation", en: "Training engineering" },
+    projects: ["maharat", "marshidi"]
+  },
+  {
+    id: "formation-formateurs",
+    label: { fr: "Formation de formateurs", en: "Trainer development" },
+    projects: ["culturtheque", "marshidi"]
+  },
+  {
+    id: "evaluation-recherche",
+    label: { fr: "Évaluation & recherche", en: "Evaluation & research" },
+    projects: ["memoire"]
+  }
+];
+
+const projectPrimaryCategory = project =>
+  PROJECT_PRIMARY_CATEGORY[project.id] ||
+  (Array.isArray(project.cat) ? project.cat[0] : "") || "";
+
+const projectFilterIds = project =>
+  PROJECT_FILTERS
+    .filter(filter => filter.projects.includes(project.id))
+    .map(filter => filter.id);
+
+const projectFilterLabel = filter => T(filter.label);
 const block = (label, value) => {
   const v = T(value);
   if (!v && !S.draft) return "";
@@ -107,13 +150,14 @@ const stats = achievements => {
 const loop = () => !Array.isArray(D.loop) ? "" : `<div class="loop">${D.loop.map((step, index) => `<div class="loop-step"><small>0${index + 1}</small>${T(step.k)}</div>`).join("")}</div>`;
 const card = project => {
   if (!project) return "";
-  const categories = Array.isArray(project.cat) ? project.cat : [];
-  return `<a class="card rv" href="#/realisations/${project.id}" data-categories="${categories.join(" ")}"><span class="tag">${categories.map(cat).join(" · ")}</span><h3>${T(project.title)}</h3><p>${T(project.context)}</p><span class="project-more">${u("viewProject")}</span></a>`;
+  const primaryCategory = projectPrimaryCategory(project);
+  const filters = projectFilterIds(project);
+  return `<a class="card rv" href="#/realisations/${project.id}" data-categories="${primaryCategory}" data-filters="${filters.join(" ")}"><span class="tag">${cat(primaryCategory)}</span><h3>${T(project.title)}</h3><p>${T(project.context)}</p><span class="project-more">${u("viewProject")}</span></a>`;
 };
 const projectPage = project => {
   if (!project) return `<div class="page"><div class="w"><h1>${u("notFound")}</h1><a class="back" href="#section-realisations">${u("back")}</a></div></div>`;
-  const categories = Array.isArray(project.cat) ? project.cat : [];
-  return `<div class="page"><div class="w"><a class="back" href="#section-realisations">${u("back")}</a><div class="project-head"><p class="title">${categories.map(cat).join(" · ")}</p><h1>${T(project.title)}</h1>${T(project.context) ? `<p class="lead">${T(project.context)}</p>` : ""}</div><div class="project-content">${block(u("need"), project.need)}${block(u("goal"), project.goal)}${block(u("role"), project.role)}${block(u("app"), project.approach)}${listBlock(u("del"), project.deliverables)}${block(u("tools"), project.tools)}${block(u("res"), project.results)}${block(u("imp"), project.impact)}${project.link ? `<div class="project-link"><a class="btn o" href="${project.link}" target="_blank" rel="noopener noreferrer">${u("link")} →</a></div>` : ""}</div></div></div>`;
+  const primaryCategory = projectPrimaryCategory(project);
+  return `<div class="page"><div class="w"><a class="back" href="#section-realisations">${u("back")}</a><div class="project-head"><p class="title">${cat(primaryCategory)}</p><h1>${T(project.title)}</h1>${T(project.context) ? `<p class="lead">${T(project.context)}</p>` : ""}</div><div class="project-content">${block(u("need"), project.need)}${block(u("goal"), project.goal)}${block(u("role"), project.role)}${block(u("app"), project.approach)}${listBlock(u("del"), project.deliverables)}${block(u("tools"), project.tools)}${block(u("res"), project.results)}${block(u("imp"), project.impact)}${project.link ? `<div class="project-link"><a class="btn o" href="${project.link}" target="_blank" rel="noopener noreferrer">${u("link")} →</a></div>` : ""}</div></div></div>`;
 };
 const productionsSection = () => {
   const p = D.productions;
@@ -138,8 +182,11 @@ const pages = {
     const project = Array.isArray(D.projects) ? D.projects.find(item => item.id === argument) : null;
     if (project) return projectPage(project);
     const projects = Array.isArray(D.projects) ? D.projects : [];
-    const categories = Array.isArray(D.categories) ? D.categories : [];
-    return `<div class="page"><div class="w"><h1>${u("projectsTitle")}</h1><div class="filters" role="group" aria-label="${u("projectsTitle")}">${["", ...categories.map(c => c.id)].map(id => `<button type="button" data-f="${id}" class="${id === filter ? "on" : ""}">${id ? cat(id) : u("all")}</button>`).join("")}</div><div class="grid" id="pg">${projects.filter(project => !filter || (Array.isArray(project.cat) && project.cat.includes(filter))).map(card).join("")}</div></div></div>`;
+    const filterButtons = [
+      `<button type="button" data-f="" class="${!filter ? "on" : ""}">${u("all")}</button>`,
+      ...PROJECT_FILTERS.map(item => `<button type="button" data-f="${item.id}" class="${item.id === filter ? "on" : ""}">${projectFilterLabel(item)}</button>`)
+    ].join("");
+    return `<div class="page"><div class="w"><h1>${u("projectsTitle")}</h1><div class="filters" role="group" aria-label="${u("projectsTitle")}">${filterButtons}</div><div class="grid" id="pg">${projects.map(card).join("")}</div></div></div>`;
   },
   // La démarche est présentée ici une seule fois, sans statistiques ni catalogue de projets.
   demarche: () => `<div class="page"><div class="w"><h1>${u("approachTitle")}</h1><p class="lead">${T(P.vision)}</p>${block(u("met"), P.method)}<section class="subsection"><h2>${u("loop")}</h2>${loop()}</section></div></div>`,
@@ -213,8 +260,8 @@ function render(event) {
   const activeFilter = key === "realisations" && argument.startsWith("f:") ? argument.slice(2) : "";
   document.querySelectorAll("#section-realisations .filters button").forEach(button => button.classList.toggle("on", button.dataset.f === activeFilter));
   document.querySelectorAll("#section-realisations #pg .card").forEach(projectCard => {
-    const categories = (projectCard.dataset.categories || "").split(/\s+/).filter(Boolean);
-    projectCard.hidden = Boolean(activeFilter) && !categories.includes(activeFilter);
+    const filters = (projectCard.dataset.filters || "").split(/\s+/).filter(Boolean);
+    projectCard.hidden = Boolean(activeFilter) && !filters.includes(activeFilter);
   });
 
   const navItem = NAV.find(item => item.id === activeKey);
