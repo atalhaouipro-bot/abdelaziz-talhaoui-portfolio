@@ -347,3 +347,15 @@ window.addEventListener("content-ready", () => render(), { once: true });
 // Affichage initial même si content-ready a été déclenché avant le chargement de ce fichier.
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => { if (!document.getElementById("main")?.innerHTML) render(); }, { once: true });
 else render();
+// Étapes de « Ma démarche » : un clic affiche le détail sans recharger la page
+document.addEventListener("click", event => {
+const step = event.target.closest(".loop-step[data-step]");
+if (!step) return;
+step.closest(".loop").querySelectorAll(".loop-step").forEach(button => {
+const active = button === step;
+button.classList.toggle("on", active);
+button.setAttribute("aria-selected", String(active));
+});
+const panel = document.getElementById("loop-panel");
+if (panel) panel.innerHTML = loopPanel(Number(step.dataset.step));
+});
